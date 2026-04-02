@@ -1,0 +1,107 @@
+-- 1. Crear Base de Datos
+IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'StreetRaceX')
+BEGIN
+    CREATE DATABASE StreetRaceX;
+END
+GO
+
+USE StreetRaceX;
+GO
+
+-- 2. Tabla de Categorías de Competencia
+CREATE TABLE competition_categories (
+    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    nombre NVARCHAR(100) NOT NULL,
+    descripcion NVARCHAR(MAX),
+    activo BIT DEFAULT 1,
+    created_at DATETIME2 DEFAULT GETDATE()
+);
+
+-- 3. Tabla de Usuarios
+CREATE TABLE users (
+    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    username NVARCHAR(50) NOT NULL UNIQUE,
+    email NVARCHAR(150) NOT NULL UNIQUE,
+    password_hash NVARCHAR(255) NOT NULL,
+    foto_perfil NVARCHAR(MAX),
+    zona_localidad NVARCHAR(100),
+    zona_ciudad NVARCHAR(100),
+    zona_estado NVARCHAR(100),
+    zona_pais NVARCHAR(100),
+    rango NVARCHAR(1) DEFAULT 'D',
+    categoria_id UNIQUEIDENTIFIER,
+    victorias INT DEFAULT 0,
+    derrotas INT DEFAULT 0,
+    retos_consecutivos INT DEFAULT 0,
+    estado NVARCHAR(20) DEFAULT 'activo',
+    rol NVARCHAR(20) DEFAULT 'piloto',
+    created_at DATETIME2 DEFAULT GETDATE(),
+    updated_at DATETIME2 DEFAULT GETDATE(),
+    CONSTRAINT FK_Users_Categories FOREIGN KEY (categoria_id) 
+        REFERENCES competition_categories(id)
+);
+
+-- 4. Tabla de Vehículos
+CREATE TABLE vehicles (
+    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    user_id UNIQUEIDENTIFIER NOT NULL,
+    tipo_vehiculo NVARCHAR(30) NOT NULL,
+    marca NVARCHAR(100),
+    modelo NVARCHAR(100),
+    año INT,
+    color NVARCHAR(50),
+    placa NVARCHAR(20),
+    foto NVARCHAR(MAX),
+    modificaciones NVARCHAR(MAX),
+    activo BIT DEFAULT 0,
+    created_at DATETIME2 DEFAULT GETDATE(),
+    CONSTRAINT FK_Vehicles_Users FOREIGN KEY (user_id) 
+        REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 5. Tabla de Retos
+CREATE TABLE challenges (
+    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    retador_id UNIQUEIDENTIFIER NOT NULL,
+    retado_id UNIQUEIDENTIFIER NOT NULL,
+    vehiculo_retador_id UNIQUEIDENTIFIER NOT NULL,
+    vehiculo_retado_id UNIQUEIDENTIFIER NOT NULL,
+    tipo_carrera NVARCHAR(50),
+    estado NVARCHAR(20) DEFAULT 'pendiente',
+    ganador_id UNIQUEIDENTIFIER NULL,
+    ubicacion_acordada NVARCHAR(255),
+    fecha_acordada DATETIME2,
+    notas NVARCHAR(MAX),
+    created_at DATETIME2 DEFAULT GETDATE(),
+    updated_at DATETIME2 DEFAULT GETDATE(),
+    CONSTRAINT FK_Challenge_Retador FOREIGN KEY (retador_id) REFERENCES users(id),
+    CONSTRAINT FK_Challenge_Retado FOREIGN KEY (retado_id) REFERENCES users(id),
+    CONSTRAINT FK_Challenge_VehiculoRetador FOREIGN KEY (vehiculo_retador_id) REFERENCES vehicles(id),
+    CONSTRAINT FK_Challenge_VehiculoRetado FOREIGN KEY (vehiculo_retado_id) REFERENCES vehicles(id),
+    CONSTRAINT FK_Challenge_Ganador FOREIGN KEY (ganador_id) REFERENCES users(id)
+);
+
+-- 6. Tabla de Notificaciones
+CREATE TABLE notifications (
+    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    user_id UNIQUEIDENTIFIER NOT NULL,
+    tipo NVARCHAR(50),
+    mensaje NVARCHAR(MAX),
+    leida BIT DEFAULT 0,
+    referencia_id UNIQUEIDENTIFIER NULL,
+    created_at DATETIME2 DEFAULT GETDATE(),
+    CONSTRAINT FK_Notifications_Users FOREIGN KEY (user_id) 
+        REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 7. Historial de Rangos
+CREATE TABLE user_rank_history (
+    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    user_id UNIQUEIDENTIFIER NOT NULL,
+    rango_anterior NVARCHAR(1),
+    rango_nuevo NVARCHAR(1),
+    fecha DATETIME2 DEFAULT GETDATE(),
+    CONSTRAINT FK_RankHistory_Users FOREIGN KEY (user_id) 
+        REFERENCES users(id) ON DELETE CASCADE
+);
+GO

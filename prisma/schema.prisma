@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id          String   @id @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  nombre      String   @db.NVarChar(100)
+  descripcion String?  @db.NVarChar(Max)
+  activo      Boolean? @default(true)
+  created_at  DateTime? @default(now()) @db.DateTime2
+
+  users       User[]
+
+  @@map("competition_categories")
+}
+
+model User {
+  id                 String    @id @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  username           String    @unique @db.NVarChar(50)
+  email              String    @unique @db.NVarChar(150)
+  password_hash      String    @db.NVarChar(255)
+  foto_perfil        String?   @db.NVarChar(Max)
+  zona_localidad     String?   @db.NVarChar(100)
+  zona_ciudad        String?   @db.NVarChar(100)
+  zona_estado        String?   @db.NVarChar(100)
+  zona_pais          String?   @db.NVarChar(100)
+  rango              String?   @default("D") @db.NVarChar(1)
+  categoria_id       String?   @db.UniqueIdentifier
+  victorias          Int?      @default(0)
+  derrotas           Int?      @default(0)
+  retos_consecutivos Int?      @default(0)
+  estado             String?   @default("activo") @db.NVarChar(20)
+  rol                String?   @default("piloto") @db.NVarChar(20)
+  created_at         DateTime? @default(now()) @db.DateTime2
+  updated_at         DateTime? @default(now()) @db.DateTime2
+
+  categoria          Category? @relation(fields: [categoria_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  vehicles           Vehicle[]
+  challengesSent     Challenge[] @relation("Retador")
+  challengesReceived Challenge[] @relation("Retado")
+  challengesWon      Challenge[] @relation("Ganador")
+  notifications      Notification[]
+  rankHistory        RankHistory[]
+
+  @@map("users")
+}
+
+model Vehicle {
+  id             String    @id @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  user_id        String    @db.UniqueIdentifier
+  tipo_vehiculo  String    @db.NVarChar(30)
+  marca          String?   @db.NVarChar(100)
+  modelo         String?   @db.NVarChar(100)
+  año            Int?
+  color          String?   @db.NVarChar(50)
+  placa          String?   @db.NVarChar(20)
+  foto           String?   @db.NVarChar(Max)
+  modificaciones String?   @db.NVarChar(Max)
+  activo         Boolean?  @default(false)
+  created_at     DateTime? @default(now()) @db.DateTime2
+
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  challengesSent Challenge[] @relation("VehiculoRetador")
+  challengesReceived Challenge[] @relation("VehiculoRetado")
+
+  @@map("vehicles")
+}
+
+model Challenge {
+  id                  String    @id @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  retador_id          String    @db.UniqueIdentifier
+  retado_id           String    @db.UniqueIdentifier
+  vehiculo_retador_id String    @db.UniqueIdentifier
+  vehiculo_retado_id  String    @db.UniqueIdentifier
+  tipo_carrera        String?   @db.NVarChar(50)
+  estado              String?   @default("pendiente") @db.NVarChar(20)
+  ganador_id          String?   @db.UniqueIdentifier
+  ubicacion_acordada  String?   @db.NVarChar(255)
+  fecha_acordada      DateTime? @db.DateTime2
+  notas               String?   @db.NVarChar(Max)
+  created_at          DateTime? @default(now()) @db.DateTime2
+  updated_at          DateTime? @default(now()) @db.DateTime2
+
+  retador             User      @relation("Retador", fields: [retador_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  retado              User      @relation("Retado", fields: [retado_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  vehiculo_retador    Vehicle   @relation("VehiculoRetador", fields: [vehiculo_retador_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  vehiculo_retado     Vehicle   @relation("VehiculoRetado", fields: [vehiculo_retado_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  ganador             User?     @relation("Ganador", fields: [ganador_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@map("challenges")
+}
+
+model Notification {
+  id            String    @id @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  user_id       String    @db.UniqueIdentifier
+  tipo          String?   @db.NVarChar(50)
+  mensaje       String?   @db.NVarChar(Max)
+  leida         Boolean?  @default(false)
+  referencia_id String?   @db.UniqueIdentifier
+  created_at    DateTime? @default(now()) @db.DateTime2
+
+  user          User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("notifications")
+}
+
+model RankHistory {
+  id             String    @id @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  user_id        String    @db.UniqueIdentifier
+  rango_anterior String?   @db.NVarChar(1)
+  rango_nuevo    String?   @db.NVarChar(1)
+  fecha          DateTime? @default(now()) @db.DateTime2
+
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("user_rank_history")
+}
