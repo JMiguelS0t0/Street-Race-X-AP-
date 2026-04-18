@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listNotifications, markAsRead, markAllAsRead, deleteNotification } from '../controllers/notification.controller';
+import { listNotifications, updateNotification, bulkUpdateNotifications, deleteNotification } from '../controllers/notification.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -29,23 +29,32 @@ router.get('/', listNotifications);
 
 /**
  * @swagger
- * /notifications/read-all:
+ * /notifications:
  *   patch:
- *     summary: Marcar todas como leídas
+ *     summary: Actualizar estado de notificaciones en lote
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [leida]
+ *             properties:
+ *               leida: { type: boolean }
  *     responses:
  *       200:
  *         description: Notificaciones actualizadas
  */
-router.patch('/read-all', markAllAsRead);
+router.patch('/', bulkUpdateNotifications);
 
 /**
  * @swagger
- * /notifications/{id}/read:
+ * /notifications/{id}:
  *   patch:
- *     summary: Marcar una notificación como leída
+ *     summary: Actualizar estado de una notificación
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
@@ -54,11 +63,20 @@ router.patch('/read-all', markAllAsRead);
  *         name: id
  *         required: true
  *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [leida]
+ *             properties:
+ *               leida: { type: boolean }
  *     responses:
  *       200:
  *         description: Notificación actualizada
  */
-router.patch('/:id/read', markAsRead);
+router.patch('/:id', updateNotification);
 
 /**
  * @swagger
