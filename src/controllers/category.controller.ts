@@ -52,3 +52,20 @@ export const deleteCategory = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: 'Error al eliminar categoría' });
   }
 };
+
+export const getCategoryDetail = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const category = await prisma.category.findUnique({
+      where: { id }
+    });
+    
+    if (!category) {
+      return res.status(404).json({ success: false, error: 'Categoría no encontrada' });
+    }
+    
+    res.json({ success: true, data: category });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: 'Error al obtener categoría' });
+  }
+};
