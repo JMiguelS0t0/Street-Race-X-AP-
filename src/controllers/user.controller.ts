@@ -164,3 +164,30 @@ export const getTopRanking = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: 'Error al obtener ranking' });
   }
 };
+
+export const adminUpdateUser = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { estado, rol, rango } = req.body;
+    
+    const user = await prisma.user.update({
+      where: { id },
+      data: { estado, rol, rango, updated_at: new Date() },
+      select: { id: true, username: true, email: true, estado: true, rol: true, rango: true }
+    });
+
+    res.json({ success: true, message: 'Usuario actualizado por administrador', data: user });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: 'Error al actualizar usuario' });
+  }
+};
+
+export const adminDeleteUser = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    await prisma.user.delete({ where: { id } });
+    res.json({ success: true, message: 'Usuario eliminado por administrador' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: 'Error al eliminar usuario' });
+  }
+};

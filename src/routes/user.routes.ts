@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getPublicProfile, discoverPilots, updateProfile, getRankHistory, getTopRanking, listAllUsers, deleteMe } from '../controllers/user.controller';
+import { getPublicProfile, discoverPilots, updateProfile, getRankHistory, getTopRanking, listAllUsers, deleteMe, adminUpdateUser, adminDeleteUser } from '../controllers/user.controller';
 import { authMiddleware, adminMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -138,5 +138,52 @@ router.delete('/me', authMiddleware, deleteMe);
  *         description: Datos públicos
  */
 router.get('/:id', authMiddleware, getPublicProfile);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   patch:
+ *     summary: (Admin) Actualizar cualquier usuario
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               estado: { type: string, enum: [activo, suspendido] }
+ *               rol: { type: string, enum: [piloto, administrador] }
+ *               rango: { type: string, enum: [D, C, B, A, S] }
+ *     responses:
+ *       200:
+ *         description: Usuario actualizado
+ */
+router.patch('/:id', authMiddleware, adminMiddleware, adminUpdateUser);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   delete:
+ *     summary: (Admin) Eliminar un usuario
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Usuario eliminado
+ */
+router.delete('/:id', authMiddleware, adminMiddleware, adminDeleteUser);
 
 export default router;
