@@ -244,6 +244,9 @@ export const updateChallenge = async (req: any, res: Response) => {
       data: { estado, updated_at: new Date() }
     });
 
+    // completado is handled above with its own transaction and returns early.
+    // Remaining states: aceptado, rechazado, cancelado, en_curso.
+    // For en_curso, participation is already enforced above, so isRetador/isRetado is reliable.
     const notificationMap: Record<string, { userId: string; tipo: string; mensaje: string }> = {
       aceptado:  { userId: challenge.retador_id, tipo: 'reto_aceptado',  mensaje: 'El reto ha sido aceptado' },
       rechazado: { userId: challenge.retador_id, tipo: 'reto_rechazado', mensaje: 'El reto ha sido rechazado' },
