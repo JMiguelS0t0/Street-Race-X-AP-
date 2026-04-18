@@ -72,87 +72,6 @@ export const createChallenge = async (req: any, res: Response) => {
   }
 };
 
-export const completeChallenge = async (req: any, res: Response) => {
-  try {
-    const id = req.params.id as string;
-    const { ganador_id } = req.body;
-
-    const challenge = await prisma.challenge.findUnique({
-      where: { id },
-      include: { retador: true, retado: true }
-    });
-
-    if (!challenge || challenge.estado !== 'aceptado') {
-      return res.status(400).json({ success: false, error: 'El reto no existe o no está en un estado válido para completarse' });
-    }
-
-    const isRetadorWinner = ganador_id === challenge.retador_id;
-    const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
-
-    await prisma.$transaction(async (tx) => {
-      await tx.challenge.update({
-        where: { id },
-        data: { estado: 'completado', ganador_id, updated_at: new Date() }
-      });
-
-      const winner = await tx.user.findUnique({ where: { id: ganador_id } });
-      if (winner) {
-        const newConsecutiveWins = (winner.retos_consecutivos || 0) + 1;
-        let newRank = winner.rango || 'D';
-        
-        if (newConsecutiveWins >= 2 && newRank !== 'S') {
-          const oldRank = newRank;
-          newRank = getNextRank(newRank);
-          
-          await tx.rankHistory.create({
-            data: { user_id: ganador_id, rango_anterior: oldRank, rango_nuevo: newRank }
-          });
-
-          await tx.notification.create({
-            data: { user_id: ganador_id, tipo: 'rango_subido', mensaje: `¡Felicidades! Has ascendido al rango ${newRank}` }
-          });
-
-          await tx.user.update({
-            where: { id: ganador_id },
-            data: { 
-              victorias: { increment: 1 }, 
-              rango: newRank, 
-              retos_consecutivos: 0 
-            }
-          });
-        } else {
-          await tx.user.update({
-            where: { id: ganador_id },
-            data: { 
-              victorias: { increment: 1 }, 
-              retos_consecutivos: newConsecutiveWins 
-            }
-          });
-        }
-      }
-
-      await tx.user.update({
-        where: { id: perdedor_id },
-        data: { 
-          derrotas: { increment: 1 }, 
-          retos_consecutivos: 0 
-        }
-      });
-
-      await tx.notification.create({
-        data: { user_id: ganador_id, tipo: 'resultado', mensaje: `Has ganado el reto contra ${isRetadorWinner ? challenge.retado.username : challenge.retador.username}` }
-      });
-      await tx.notification.create({
-        data: { user_id: perdedor_id, tipo: 'resultado', mensaje: `Has perdido el reto contra ${isRetadorWinner ? challenge.retador.username : challenge.retado.username}` }
-      });
-    });
-
-    res.json({ success: true, message: 'Reto completado y estadísticas actualizadas' });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al completar reto' });
-  }
-};
-
 export const listChallenges = async (req: any, res: Response) => {
   try {
     const challenges = await prisma.challenge.findMany({
@@ -192,12 +111,15 @@ export const getChallengeDetail = async (req: any, res: Response) => {
   }
 };
 
-export const updateChallengeStatus = async (req: any, res: Response) => {
+export const updateChallenge = async (req: any, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { estado } = req.body; 
+    const { estado, ganador_id } = req.body; 
     
-    const challenge = await prisma.challenge.findUnique({ where: { id } });
+    const challenge = await prisma.challenge.findUnique({ 
+      where: { id },
+      include: { retador: true, retado: true }
+    });
     if (!challenge) return res.status(404).json({ success: false, error: 'Reto no encontrado' });
 
     if (estado === 'aceptado' || estado === 'rechazado') {
@@ -210,6 +132,84 @@ export const updateChallengeStatus = async (req: any, res: Response) => {
       if (challenge.retador_id !== req.user.id) {
         return res.status(403).json({ success: false, error: 'Solo el retador puede cancelar este reto' });
       }
+    }
+
+    if (estado === 'en_curso') {
+      if (challenge.estado !== 'aceptado') {
+        return res.status(400).json({ success: false, error: 'El reto debe estar aceptado para pasar a en_curso' });
+      }
+    }
+
+    if (estado === 'completado') {
+      if (challenge.estado !== 'aceptado' && challenge.estado !== 'en_curso') {
+        return res.status(400).json({ success: false, error: 'El reto no está en un estado válido para completarse' });
+      }
+      if (!ganador_id) {
+        return res.status(400).json({ success: false, error: 'Se requiere ganador_id para completar el reto' });
+      }
+
+      const isRetadorWinner = ganador_id === challenge.retador_id;
+      const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
+
+      await prisma.$transaction(async (tx: any) => {
+        await tx.challenge.update({
+          where: { id },
+          data: { estado: 'completado', ganador_id, updated_at: new Date() }
+        });
+
+        const winner = await tx.user.findUnique({ where: { id: ganador_id } });
+        if (winner) {
+          const newConsecutiveWins = (winner.retos_consecutivos || 0) + 1;
+          let newRank = winner.rango || 'D';
+          
+          if (newConsecutiveWins >= 2 && newRank !== 'S') {
+            const oldRank = newRank;
+            newRank = getNextRank(newRank);
+            
+            await tx.rankHistory.create({
+              data: { user_id: ganador_id, rango_anterior: oldRank, rango_nuevo: newRank }
+            });
+
+            await tx.notification.create({
+              data: { user_id: ganador_id, tipo: 'rango_subido', mensaje: `¡Felicidades! Has ascendido al rango ${newRank}` }
+            });
+
+            await tx.user.update({
+              where: { id: ganador_id },
+              data: { 
+                victorias: { increment: 1 }, 
+                rango: newRank, 
+                retos_consecutivos: 0 
+              }
+            });
+          } else {
+            await tx.user.update({
+              where: { id: ganador_id },
+              data: { 
+                victorias: { increment: 1 }, 
+                retos_consecutivos: newConsecutiveWins 
+              }
+            });
+          }
+        }
+
+        await tx.user.update({
+          where: { id: perdedor_id },
+          data: { 
+            derrotas: { increment: 1 }, 
+            retos_consecutivos: 0 
+          }
+        });
+
+        await tx.notification.create({
+          data: { user_id: ganador_id, tipo: 'resultado', mensaje: `Has ganado el reto contra ${isRetadorWinner ? challenge.retado.username : challenge.retador.username}` }
+        });
+        await tx.notification.create({
+          data: { user_id: perdedor_id, tipo: 'resultado', mensaje: `Has perdido el reto contra ${isRetadorWinner ? challenge.retador.username : challenge.retado.username}` }
+        });
+      });
+
+      return res.json({ success: true, message: 'Reto completado y estadísticas actualizadas' });
     }
 
     const updated = await prisma.challenge.update({
@@ -228,7 +228,7 @@ export const updateChallengeStatus = async (req: any, res: Response) => {
 
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al actualizar estado del reto' });
+    res.status(500).json({ success: false, error: 'Error al actualizar reto' });
   }
 };
 

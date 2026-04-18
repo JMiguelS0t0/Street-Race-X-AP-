@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createChallenge, completeChallenge, listChallenges, updateChallengeStatus, getGlobalHistory, getChallengeDetail } from '../controllers/challenge.controller';
+import { createChallenge, listChallenges, updateChallenge, getGlobalHistory, getChallengeDetail } from '../controllers/challenge.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -87,9 +87,9 @@ router.get('/:id', getChallengeDetail);
 
 /**
  * @swagger
- * /challenges/{id}/status:
+ * /challenges/{id}:
  *   patch:
- *     summary: Aceptar, Rechazar o Cancelar un reto
+ *     summary: Actualizar estado de un reto o completarlo
  *     tags: [Challenges]
  *     security:
  *       - bearerAuth: []
@@ -106,39 +106,12 @@ router.get('/:id', getChallengeDetail);
  *             type: object
  *             required: [estado]
  *             properties:
- *               estado: { type: string, enum: [aceptado, rechazado, cancelado, en_curso] }
+ *               estado: { type: string, enum: [aceptado, rechazado, cancelado, en_curso, completado] }
+ *               ganador_id: { type: string, description: "Requerido solo si el estado es completado" }
  *     responses:
  *       200:
- *         description: Estado actualizado
+ *         description: Estado o resultado actualizado
  */
-router.patch('/:id/status', updateChallengeStatus);
-
-/**
- * @swagger
- * /challenges/{id}/complete:
- *   patch:
- *     summary: Finalizar carrera y declarar ganador
- *     tags: [Challenges]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [ganador_id]
- *             properties:
- *               ganador_id: { type: string }
- *     responses:
- *       200:
- *         description: Carrera finalizada y rangos actualizados
- */
-router.patch('/:id/complete', completeChallenge);
+router.patch('/:id', updateChallenge);
 
 export default router;
