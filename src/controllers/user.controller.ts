@@ -3,12 +3,28 @@ import prisma from '../config/prisma';
 
 export const listAllUsers = async (req: Request, res: Response) => {
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    const sortField = (req.query.sort as string) || 'created_at';
+    const sortOrder = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
+
     const users = await prisma.user.findMany({
+      skip,
+      take: limit,
+      orderBy: { [sortField]: sortOrder },
       select: {
         id: true, username: true, email: true, rango: true, estado: true, rol: true, created_at: true
       }
     });
-    res.json({ success: true, data: users });
+
+    const total = await prisma.user.count();
+
+    res.json({ 
+      success: true, 
+      data: { users, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } } 
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, error: 'Error al listar usuarios' });
   }
@@ -49,6 +65,13 @@ export const getPublicProfile = async (req: Request, res: Response) => {
 
 export const discoverPilots = async (req: any, res: Response) => {
   try {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const page = parseInt(req.query.page as string) || 1;
+    const skip = (page - 1) * limit;
+    
+    const ciudadFilter = req.query.ciudad as string;
+    const tipoVehiculoFilter = req.query.tipo_vehiculo as string;
+
     const me = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: {
@@ -61,27 +84,35 @@ export const discoverPilots = async (req: any, res: Response) => {
       }
     });
 
-    if (!me || me.vehicles.length === 0) {
+    if (!me || (!tipoVehiculoFilter && me.vehicles.length === 0)) {
       return res.status(400).json({
         success: false,
         error: 'Debes tener un vehículo marcado como activo para descubrir rivales'
       });
     }
 
-    const activeVehicleType = me.vehicles[0].tipo_vehiculo;
+    const activeVehicleType = tipoVehiculoFilter || me.vehicles[0]?.tipo_vehiculo;
+
+    const whereClause: any = {
+      id: { not: me.id },
+      rango: me.rango,
+      estado: 'activo',
+      vehicles: {
+        some: {
+          activo: true,
+          tipo_vehiculo: activeVehicleType
+        }
+      }
+    };
+    
+    if (ciudadFilter) {
+      whereClause.zona_ciudad = { contains: ciudadFilter };
+    }
 
     const pilots = await prisma.user.findMany({
-      where: {
-        id: { not: me.id },
-        rango: me.rango,
-        estado: 'activo',
-        vehicles: {
-          some: {
-            activo: true,
-            tipo_vehiculo: activeVehicleType
-          }
-        }
-      },
+      where: whereClause,
+      skip,
+      take: limit,
       select: {
         id: true,
         username: true,
@@ -93,11 +124,15 @@ export const discoverPilots = async (req: any, res: Response) => {
           where: { activo: true },
           select: { id: true, tipo_vehiculo: true, marca: true, modelo: true, foto: true }
         }
-      },
-      take: 20
+      }
     });
 
-    res.json({ success: true, data: { pilots } });
+    const total = await prisma.user.count({ where: whereClause });
+
+    res.json({ 
+      success: true, 
+      data: { pilots, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } } 
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, error: 'Error en descubrimiento de pilotos' });
   }
@@ -143,6 +178,20 @@ export const getRankHistory = async (req: any, res: Response) => {
 
 export const getTopRanking = async (req: Request, res: Response) => {
   try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
+    const sortField = (req.query.sort as string) || 'rango';
+    const sortOrder = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
+
+    let orderByClause: any;
+    if (sortField === 'rango') {
+      orderByClause = [
+        { rango: sortOrder },
+        { victorias: sortOrder }
+      ];
+    } else {
+      orderByClause = { [sortField]: sortOrder };
+    }
+
     const ranking = await prisma.user.findMany({
       where: { rol: 'piloto', estado: 'activo' },
       select: {
@@ -153,11 +202,8 @@ export const getTopRanking = async (req: Request, res: Response) => {
         victorias: true,
         derrotas: true
       },
-      orderBy: [
-        { rango: 'desc' },
-        { victorias: 'desc' }
-      ],
-      take: 10
+      orderBy: orderByClause,
+      take: limit
     });
     res.json({ success: true, data: ranking });
   } catch (error: any) {
