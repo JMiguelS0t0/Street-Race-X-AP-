@@ -89,7 +89,7 @@ export const completeChallenge = async (req: any, res: Response) => {
     const isRetadorWinner = ganador_id === challenge.retador_id;
     const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.challenge.update({
         where: { id },
         data: { estado: 'completado', ganador_id, updated_at: new Date() }
