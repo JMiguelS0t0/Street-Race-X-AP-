@@ -70,7 +70,28 @@ export const createVehicle = async (req: any, res: Response) => {
 export const updateVehicle = async (req: any, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { marca, modelo, año, color, placa, foto, modificaciones } = req.body;
+    const { marca, modelo, año, color, placa, foto, modificaciones, activo } = req.body;
+
+    if (activo === true) {
+      await prisma.$transaction([
+        prisma.vehicle.updateMany({
+          where: { user_id: req.user.id },
+          data: { activo: false }
+        }),
+        prisma.vehicle.update({
+          where: { id, user_id: req.user.id },
+          data: { marca, modelo, año, color, placa, foto, modificaciones, activo: true }
+        })
+      ]);
+      return res.json({ success: true, message: 'Vehículo actualizado y marcado como activo para competir' });
+    } else if (activo === false) {
+      // Si el usuario intenta desactivar manualmente, podemos procesarlo
+      const vehicle = await prisma.vehicle.update({
+        where: { id, user_id: req.user.id },
+        data: { marca, modelo, año, color, placa, foto, modificaciones, activo: false }
+      });
+      return res.json({ success: true, message: 'Vehículo actualizado', data: vehicle });
+    }
 
     const vehicle = await prisma.vehicle.update({
       where: { id, user_id: req.user.id },
@@ -109,26 +130,5 @@ export const deleteVehicle = async (req: any, res: Response) => {
     res.json({ success: true, message: 'Vehículo eliminado' });
   } catch (error: any) {
     res.status(500).json({ success: false, error: 'Error al eliminar vehículo' });
-  }
-};
-
-export const activateVehicle = async (req: any, res: Response) => {
-  try {
-    const id = req.params.id as string;
-
-    await prisma.$transaction([
-      prisma.vehicle.updateMany({
-        where: { user_id: req.user.id },
-        data: { activo: false }
-      }),
-      prisma.vehicle.update({
-        where: { id, user_id: req.user.id },
-        data: { activo: true }
-      })
-    ]);
-
-    res.json({ success: true, message: 'Vehículo marcado como activo para competir' });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al activar vehículo' });
   }
 };
