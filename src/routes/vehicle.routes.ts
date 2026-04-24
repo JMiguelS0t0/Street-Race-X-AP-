@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listVehicles, createVehicle, updateVehicle, deleteVehicle, activateVehicle, getVehicleDetail } from '../controllers/vehicle.controller';
+import { listVehicles, createVehicle, updateVehicle, deleteVehicle, getVehicleDetail } from '../controllers/vehicle.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -102,6 +102,7 @@ router.get('/:id', getVehicleDetail);
  *               placa: { type: string }
  *               foto: { type: string }
  *               modificaciones: { type: string }
+ *               activo: { type: boolean, description: "Activar (true) u ocultar vehículo para la competencia" }
  *     responses:
  *       200:
  *         description: Datos actualizados
@@ -126,24 +127,5 @@ router.patch('/:id', updateVehicle);
  *         description: Vehículo eliminado
  */
 router.delete('/:id', deleteVehicle);
-
-/**
- * @swagger
- * /vehicles/{id}/activate:
- *   patch:
- *     summary: Activar un vehículo para competir
- *     tags: [Vehicles]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: Vehículo activado
- */
-router.patch('/:id/activate', activateVehicle);
 
 export default router;

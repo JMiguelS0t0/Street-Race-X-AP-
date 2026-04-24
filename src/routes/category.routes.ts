@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listCategories, createCategory, updateCategory, deleteCategory } from '../controllers/category.controller';
+import { listCategories, createCategory, updateCategory, deleteCategory, getCategoryDetail } from '../controllers/category.controller';
 import { authMiddleware, adminMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -22,6 +22,23 @@ const router = Router();
  *         description: Lista de categorías
  */
 router.get('/', listCategories);
+
+/**
+ * @swagger
+ * /categories/{id}:
+ *   get:
+ *     summary: Obtener detalle de una categoría
+ *     tags: [Categories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Detalle de la categoría
+ */
+router.get('/:id', getCategoryDetail);
 
 /**
  * @swagger

@@ -72,21 +72,129 @@ export const createChallenge = async (req: any, res: Response) => {
   }
 };
 
+export const completeChallenge = async (req: any, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { ganador_id } = req.body;
+
+    const challenge = await prisma.challenge.findUnique({
+      where: { id },
+      include: { retador: true, retado: true }
+    });
+
+    if (!challenge || challenge.estado !== 'aceptado') {
+      return res.status(400).json({ success: false, error: 'El reto no existe o no está en un estado válido para completarse' });
+    }
+
+    const isRetadorWinner = ganador_id === challenge.retador_id;
+    const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
+
+    await prisma.$transaction(async (tx: any) => {
+      await tx.challenge.update({
+        where: { id },
+        data: { estado: 'completado', ganador_id, updated_at: new Date() }
+      });
+
+      const winner = await tx.user.findUnique({ where: { id: ganador_id } });
+      if (winner) {
+        const newConsecutiveWins = (winner.retos_consecutivos || 0) + 1;
+        let newRank = winner.rango || 'D';
+        
+        if (newConsecutiveWins >= 2 && newRank !== 'S') {
+          const oldRank = newRank;
+          newRank = getNextRank(newRank);
+          
+          await tx.rankHistory.create({
+            data: { user_id: ganador_id, rango_anterior: oldRank, rango_nuevo: newRank }
+          });
+
+          await tx.notification.create({
+            data: { user_id: ganador_id, tipo: 'rango_subido', mensaje: `¡Felicidades! Has ascendido al rango ${newRank}` }
+          });
+
+          await tx.user.update({
+            where: { id: ganador_id },
+            data: { 
+              victorias: { increment: 1 }, 
+              rango: newRank, 
+              retos_consecutivos: 0 
+            }
+          });
+        } else {
+          await tx.user.update({
+            where: { id: ganador_id },
+            data: { 
+              victorias: { increment: 1 }, 
+              retos_consecutivos: newConsecutiveWins 
+            }
+          });
+        }
+      }
+
+      await tx.user.update({
+        where: { id: perdedor_id },
+        data: { 
+          derrotas: { increment: 1 }, 
+          retos_consecutivos: 0 
+        }
+      });
+
+      await tx.notification.create({
+        data: { user_id: ganador_id, tipo: 'resultado', mensaje: `Has ganado el reto contra ${isRetadorWinner ? challenge.retado.username : challenge.retador.username}` }
+      });
+      await tx.notification.create({
+        data: { user_id: perdedor_id, tipo: 'resultado', mensaje: `Has perdido el reto contra ${isRetadorWinner ? challenge.retador.username : challenge.retado.username}` }
+      });
+    });
+
+    res.json({ success: true, message: 'Reto completado y estadísticas actualizadas' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: 'Error al completar reto' });
+  }
+};
+
 export const listChallenges = async (req: any, res: Response) => {
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    const sortField = (req.query.sort as string) || 'created_at';
+    const sortOrder = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
+
+    const estadoFilter = req.query.estado as string;
+    const tipoCarreraFilter = req.query.tipo_carrera as string;
+
+    const whereClause: any = {
+      OR: [{ retador_id: req.user.id }, { retado_id: req.user.id }]
+    };
+
+    if (estadoFilter) {
+      whereClause.estado = estadoFilter;
+    }
+    if (tipoCarreraFilter) {
+      whereClause.tipo_carrera = tipoCarreraFilter;
+    }
+
     const challenges = await prisma.challenge.findMany({
-      where: {
-        OR: [{ retador_id: req.user.id }, { retado_id: req.user.id }]
-      },
+      where: whereClause,
+      skip,
+      take: limit,
       include: {
         retador: { select: { username: true, rango: true } },
         retado: { select: { username: true, rango: true } },
         vehiculo_retador: { select: { marca: true, modelo: true } },
         vehiculo_retado: { select: { marca: true, modelo: true } }
       },
-      orderBy: { created_at: 'desc' }
+      orderBy: { [sortField]: sortOrder }
     });
-    res.json({ success: true, data: challenges });
+
+    const total = await prisma.challenge.count({ where: whereClause });
+
+    res.json({ 
+      success: true, 
+      data: { challenges, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } } 
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, error: 'Error al listar retos' });
   }

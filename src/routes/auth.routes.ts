@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, getMe, logout } from '../controllers/auth.controller';
+import { register, login, getMe, logout, refreshToken } from '../controllers/auth.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -72,6 +72,20 @@ router.post('/login', login);
  *         description: Sesión cerrada
  */
 router.post('/logout', logout);
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Renovar token de acceso
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Nuevo token generado
+ */
+router.post('/refresh', refreshToken);
 
 /**
  * @swagger

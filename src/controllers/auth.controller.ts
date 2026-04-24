@@ -133,3 +133,36 @@ export const getMe = async (req: any, res: Response) => {
     res.status(500).json({ success: false, error: 'Error al obtener perfil' });
   }
 };
+
+export const refreshToken = async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, error: 'Token no proporcionado' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string, { ignoreExpiration: true }) as any;
+    
+    if (!decoded || !decoded.id) {
+       return res.status(401).json({ success: false, error: 'Token inválido' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    
+    if (!user || user.estado === 'suspendido') {
+      return res.status(401).json({ success: false, error: 'Usuario no existe o está suspendido' });
+    }
+
+    const newToken = jwt.sign(
+      { id: user.id, username: user.username, rol: user.rol },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ success: true, message: 'Token renovado', data: { token: newToken } });
+  } catch (error: any) {
+    res.status(401).json({ success: false, error: 'Token inválido', details: [error.message] });
+  }
+};

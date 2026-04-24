@@ -14,28 +14,36 @@ export const listNotifications = async (req: any, res: Response) => {
   }
 };
 
-export const markAsRead = async (req: any, res: Response) => {
+export const updateNotification = async (req: any, res: Response) => {
   try {
     const id = req.params.id as string;
-    await prisma.notification.update({
+    const { leida } = req.body;
+    
+    const notification = await prisma.notification.update({
       where: { id, user_id: req.user.id },
-      data: { leida: true }
+      data: { leida }
     });
-    res.json({ success: true, message: 'Notificación marcada como leída' });
+    res.json({ success: true, message: 'Notificación actualizada', data: notification });
   } catch (error: any) {
     res.status(500).json({ success: false, error: 'Error al actualizar notificación' });
   }
 };
 
-export const markAllAsRead = async (req: any, res: Response) => {
+export const bulkUpdateNotifications = async (req: any, res: Response) => {
   try {
-    await prisma.notification.updateMany({
-      where: { user_id: req.user.id, leida: false },
-      data: { leida: true }
-    });
-    res.json({ success: true, message: 'Todas las notificaciones marcadas como leídas' });
+    const { leida } = req.body;
+    
+    if (leida === true) {
+      await prisma.notification.updateMany({
+        where: { user_id: req.user.id, leida: false },
+        data: { leida: true }
+      });
+      return res.json({ success: true, message: 'Todas las notificaciones marcadas como leídas' });
+    }
+    
+    res.json({ success: true, message: 'No se realizaron cambios' });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al actualizar notificaciones' });
+    res.status(500).json({ success: false, error: 'Error al actualizar notificaciones en lote' });
   }
 };
 
