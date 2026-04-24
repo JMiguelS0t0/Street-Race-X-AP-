@@ -28,29 +28,38 @@ export const getVehicleDetail = async (req: any, res: Response) => {
 
 export const createVehicle = async (req: any, res: Response) => {
   try {
-    const { tipo_vehiculo, marca, modelo, año, color, placa, foto, modificaciones } = req.body;
+    const { tipo_vehiculo, marca, modelo, año, color, placa, foto, modificaciones, activo } = req.body;
 
-    const vehicleCount = await prisma.vehicle.count({ where: { user_id: req.user.id } });
-    if (vehicleCount >= 3) {
+    const existingVehicles = await prisma.vehicle.count({ where: { user_id: req.user.id } });
+    if (existingVehicles >= 3) {
       return res.status(400).json({ success: false, error: 'Has alcanzado el límite máximo de 3 vehículos' });
     }
 
-    const shouldBeActive = vehicleCount === 0;
+    const isActivo = activo !== undefined ? activo : (existingVehicles === 0);
 
-    const vehicle = await prisma.vehicle.create({
-      data: {
-        user_id: req.user.id,
-        tipo_vehiculo,
-        marca,
-        modelo,
-        año,
-        color,
-        placa,
-        foto,
-        modificaciones,
-        activo: shouldBeActive
-      }
-    });
+    let vehicle;
+
+    if (isActivo) {
+      // Usar transacción para garantizar que solo uno esté activo
+      const result = await prisma.$transaction(async (tx: any) => {
+        await tx.vehicle.updateMany({
+          where: { user_id: req.user.id },
+          data: { activo: false }
+        });
+        return tx.vehicle.create({
+          data: {
+            user_id: req.user.id, tipo_vehiculo, marca, modelo, año, color, placa, foto, modificaciones, activo: true
+          }
+        });
+      });
+      vehicle = result;
+    } else {
+      vehicle = await prisma.vehicle.create({
+        data: {
+          user_id: req.user.id, tipo_vehiculo, marca, modelo, año, color, placa, foto, modificaciones, activo: false
+        }
+      });
+    }
 
     res.status(201).json({ success: true, message: 'Vehículo registrado', data: vehicle });
   } catch (error: any) {
