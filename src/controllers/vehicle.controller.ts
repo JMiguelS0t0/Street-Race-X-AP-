@@ -16,7 +16,7 @@ export const listVehicles = async (req: any, res: Response) => {
 export const getVehicleDetail = async (req: any, res: Response) => {
   try {
     const id = req.params.id as string;
-    const vehicle = await prisma.vehicle.findUnique({
+    const vehicle = await prisma.vehicle.findFirst({
       where: { id, user_id: req.user.id }
     });
     if (!vehicle) return res.status(404).json({ success: false, error: 'Vehículo no encontrado' });
@@ -72,6 +72,14 @@ export const updateVehicle = async (req: any, res: Response) => {
     const id = req.params.id as string;
     const { marca, modelo, año, color, placa, foto, modificaciones, activo } = req.body;
 
+    const existingVehicle = await prisma.vehicle.findFirst({
+      where: { id, user_id: req.user.id }
+    });
+
+    if (!existingVehicle) {
+      return res.status(404).json({ success: false, error: 'Vehículo no encontrado o no tienes permiso para actualizarlo' });
+    }
+
     if (activo === true) {
       await prisma.$transaction([
         prisma.vehicle.updateMany({
@@ -79,7 +87,7 @@ export const updateVehicle = async (req: any, res: Response) => {
           data: { activo: false }
         }),
         prisma.vehicle.update({
-          where: { id, user_id: req.user.id },
+          where: { id },
           data: { marca, modelo, año, color, placa, foto, modificaciones, activo: true }
         })
       ]);
@@ -87,14 +95,14 @@ export const updateVehicle = async (req: any, res: Response) => {
     } else if (activo === false) {
       // Si el usuario intenta desactivar manualmente, podemos procesarlo
       const vehicle = await prisma.vehicle.update({
-        where: { id, user_id: req.user.id },
+        where: { id },
         data: { marca, modelo, año, color, placa, foto, modificaciones, activo: false }
       });
       return res.json({ success: true, message: 'Vehículo actualizado', data: vehicle });
     }
 
     const vehicle = await prisma.vehicle.update({
-      where: { id, user_id: req.user.id },
+      where: { id },
       data: { marca, modelo, año, color, placa, foto, modificaciones }
     });
 
@@ -125,7 +133,11 @@ export const deleteVehicle = async (req: any, res: Response) => {
       });
     }
 
-    await prisma.vehicle.delete({ where: { id, user_id: req.user.id } });
+    const deletedResult = await prisma.vehicle.deleteMany({ where: { id, user_id: req.user.id } });
+
+    if (deletedResult.count === 0) {
+      return res.status(404).json({ success: false, error: 'Vehículo no encontrado o no tienes permiso para eliminarlo' });
+    }
 
     res.json({ success: true, message: 'Vehículo eliminado' });
   } catch (error: any) {

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma';
+import { extractToken } from '../middlewares/auth.middleware';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -135,18 +136,22 @@ export const getMe = async (req: any, res: Response) => {
 };
 
 export const refreshToken = async (req: Request, res: Response) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const token = extractToken(req);
+  if (!token) {
     return res.status(401).json({ success: false, error: 'Token no proporcionado' });
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string, { ignoreExpiration: true }) as any;
     
     if (!decoded || !decoded.id) {
        return res.status(401).json({ success: false, error: 'Token inválido' });
+    }
+
+    const MAX_AGE_SECONDS = 86400; // 1 día
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    if (decoded.iat && currentTimestamp - decoded.iat > MAX_AGE_SECONDS) {
+      return res.status(401).json({ success: false, error: 'El token ha excedido el límite de antigüedad para ser renovado. Por favor inicia sesión nuevamente.' });
     }
 
     const user = await prisma.user.findUnique({ where: { id: decoded.id } });

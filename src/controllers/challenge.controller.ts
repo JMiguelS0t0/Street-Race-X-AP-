@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../config/prisma';
 
 const getNextRank = (currentRank: string): string => {
@@ -89,7 +90,7 @@ export const completeChallenge = async (req: any, res: Response) => {
     const isRetadorWinner = ganador_id === challenge.retador_id;
     const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
 
-    await prisma.$transaction(async (tx: any) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.challenge.update({
         where: { id },
         data: { estado: 'completado', ganador_id, updated_at: new Date() }
@@ -286,7 +287,7 @@ export const updateChallenge = async (req: any, res: Response) => {
       const isRetadorWinner = ganador_id === challenge.retador_id;
       const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
 
-      await prisma.$transaction(async (tx: any) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.challenge.update({
           where: { id },
           data: { estado: 'completado', ganador_id, updated_at: new Date() }
