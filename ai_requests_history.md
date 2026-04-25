@@ -2,18 +2,6 @@
 
 Este archivo mantiene un registro de las solicitudes, análisis y cambios realizados por asistentes de IA en este proyecto para mantener el contexto.
 
-## Estándares de Código (Human-Centric)
-Se han establecido las siguientes reglas para asegurar que el código generado por IA sea indistinguible de uno escrito por un desarrollador Senior humano:
-
-*   **Prioridad:** El código debe parecer hecho por humanos.
-*   **Comentarios con Propósito:** Solo comentar el "por qué" de decisiones complejas o reglas de negocio no obvias. Evitar comentarios redundantes sobre "qué" hace el código.
-*   **Pragmatismo:** Preferir soluciones simples y legibles. No sobre-abstraer.
-*   **Naming Natural:** Nombres descriptivos pero concisos (ej: `handleAuth` en vez de `processUserAuthentication`).
-*   **Agrupación Lógica:** Usar espacios en blanco para separar "párrafos" de lógica.
-*   **Manejo de Errores Realista:** Evitar `try/catch` genéricos innecesarios; manejar errores donde aporten valor real.
-*   **Idiomática:** Usar características modernas de TypeScript/ESNext de forma natural.
-
-
 ## [24/04/2026] - Análisis inicial y planeación de refactorización
 - **Solicitud:** Analizar el proyecto, identificar su objetivo, revisar el estado actual y planear los requerimientos pendientes basados en los comentarios de revisión (PRs) dejados por Copilot. Crear este historial de IA.
 - **Acción Realizada:** 
