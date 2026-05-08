@@ -16,17 +16,17 @@ dotenv.config();
 
 const app: Application = express();
 
-// Middlewares
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginOpenerPolicy: false
+}));
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Routes
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/vehicles', vehicleRoutes);
@@ -34,7 +34,6 @@ app.use('/challenges', challengeRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/categories', categoryRoutes);
 
-// Welcome Route
 app.get('/', (req: Request, res: Response) => {
   res.json({
     success: true,
@@ -42,7 +41,6 @@ app.get('/', (req: Request, res: Response) => {
   });
 });
 
-// Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({

@@ -21,9 +21,41 @@ router.use(authMiddleware);
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *         description: Número de página
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20 }
+ *         description: Notificaciones por página
  *     responses:
  *       200:
- *         description: Lista de alertas
+ *         description: Lista de notificaciones paginada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     notifications:
+ *                       type: array
+ *                       items: { $ref: '#/components/schemas/Notification' }
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         total: { type: integer }
+ *                         page: { type: integer }
+ *                         limit: { type: integer }
+ *                         totalPages: { type: integer }
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
  */
 router.get('/', listNotifications);
 
@@ -43,10 +75,21 @@ router.get('/', listNotifications);
  *             type: object
  *             required: [leida]
  *             properties:
- *               leida: { type: boolean }
+ *               leida: { type: boolean, example: true }
  *     responses:
  *       200:
- *         description: Notificaciones actualizadas
+ *         description: Notificaciones actualizadas exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: "Notificaciones actualizadas" }
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
  */
 router.patch('/', bulkUpdateNotifications);
 
@@ -54,7 +97,7 @@ router.patch('/', bulkUpdateNotifications);
  * @swagger
  * /notifications/{id}:
  *   patch:
- *     summary: Actualizar estado de una notificación
+ *     summary: Actualizar estado de una notificación específica
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
@@ -62,7 +105,7 @@ router.patch('/', bulkUpdateNotifications);
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema: { type: string, format: uuid }
  *     requestBody:
  *       required: true
  *       content:
@@ -71,10 +114,23 @@ router.patch('/', bulkUpdateNotifications);
  *             type: object
  *             required: [leida]
  *             properties:
- *               leida: { type: boolean }
+ *               leida: { type: boolean, example: true }
  *     responses:
  *       200:
- *         description: Notificación actualizada
+ *         description: Notificación actualizada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data: { $ref: '#/components/schemas/Notification' }
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         description: Notificación no encontrada
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
  */
 router.patch('/:id', updateNotification);
 
@@ -90,10 +146,23 @@ router.patch('/:id', updateNotification);
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: Notificación eliminada
+ *         description: Notificación eliminada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: "Notificación eliminada" }
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         description: Notificación no encontrada
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
  */
 router.delete('/:id', deleteNotification);
 

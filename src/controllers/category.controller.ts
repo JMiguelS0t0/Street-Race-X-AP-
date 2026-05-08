@@ -42,7 +42,7 @@ export const updateCategory = async (req: Request, res: Response) => {
 export const deleteCategory = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    // Logical delete or check for existing users
+    // Eliminación lógica para no romper referencias históricas en usuarios o retos
     await prisma.category.update({
       where: { id },
       data: { activo: false }

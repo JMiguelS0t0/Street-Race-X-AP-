@@ -19,7 +19,18 @@ const router = Router();
  *     tags: [Categories]
  *     responses:
  *       200:
- *         description: Lista de categorías
+ *         description: Lista de categorías obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Category' }
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
  */
 router.get('/', listCategories);
 
@@ -33,10 +44,29 @@ router.get('/', listCategories);
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema: { type: string, format: uuid }
+ *         description: ID de la categoría
  *     responses:
  *       200:
  *         description: Detalle de la categoría
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data: { $ref: '#/components/schemas/Category' }
+ *       404:
+ *         description: Categoría no encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: false }
+ *                 error: { type: string, example: "Categoría no encontrada" }
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
  */
 router.get('/:id', getCategoryDetail);
 
@@ -56,11 +86,25 @@ router.get('/:id', getCategoryDetail);
  *             type: object
  *             required: [nombre]
  *             properties:
- *               nombre: { type: string }
- *               descripcion: { type: string }
+ *               nombre: { type: string, example: "Pro Mod" }
+ *               descripcion: { type: string, example: "Categoría para autos altamente modificados" }
  *     responses:
  *       201:
- *         description: Categoría creada
+ *         description: Categoría creada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: "Categoría creada" }
+ *                 data: { $ref: '#/components/schemas/Category' }
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: Acceso denegado (no es admin)
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
  */
 router.post('/', authMiddleware, adminMiddleware, createCategory);
 
@@ -76,19 +120,33 @@ router.post('/', authMiddleware, adminMiddleware, createCategory);
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema: { type: string, format: uuid }
  *     requestBody:
  *       content:
  *         application/json:
  *           schema:
  *             type: object
  *             properties:
- *               nombre: { type: string }
- *               descripcion: { type: string }
- *               activo: { type: boolean }
+ *               nombre: { type: string, example: "Super Street" }
+ *               descripcion: { type: string, example: "Nueva descripción" }
+ *               activo: { type: boolean, example: true }
  *     responses:
  *       200:
  *         description: Categoría actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: "Categoría actualizada" }
+ *                 data: { $ref: '#/components/schemas/Category' }
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: Acceso denegado (no es admin)
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
  */
 router.patch('/:id', authMiddleware, adminMiddleware, updateCategory);
 
@@ -104,10 +162,23 @@ router.patch('/:id', authMiddleware, adminMiddleware, updateCategory);
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: Categoría desactivada
+ *         description: Categoría desactivada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: "Categoría desactivada" }
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: Acceso denegado (no es admin)
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
  */
 router.delete('/:id', authMiddleware, adminMiddleware, deleteCategory);
 

@@ -10,8 +10,12 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000',
-        description: 'Development server',
+        url: 'http://newmancorp.tplinkdns.com:2999',
+        description: 'Servidor Público',
+      },
+      {
+        url: 'http://localhost:2999',
+        description: 'Servidor Local',
       },
     ],
     components: {
@@ -30,6 +34,7 @@ const options: swaggerJSDoc.Options = {
     ],
   },
   apis: [
+    './src/docs/*.ts',
     './src/routes/*.ts',
     './src/controllers/*.ts'
   ],
