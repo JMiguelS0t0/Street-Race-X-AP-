@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Trophy, 
   Car, 
-  User, 
+  User as UserIcon, 
   Bell, 
-  Shield, 
-  Compass 
+  Compass,
+  LogOut
 } from 'lucide-react';
 import Auth from './views/Auth/Auth';
 import Dashboard from './views/Dashboard/Dashboard';
@@ -13,16 +13,69 @@ import Perfil from './views/Perfil/Perfil';
 import Retos from './views/Retos/Retos';
 import Vehiculos from './views/Vehiculos/Vehiculos';
 import Notificaciones from './views/Notificaciones/Notificaciones';
+import { getMe } from './services/auth.service';
+import type { User } from './services/auth.service';
 
 type ActiveView = 'auth' | 'dashboard' | 'perfil' | 'retos' | 'vehiculos' | 'notificaciones';
 
 function App() {
-  const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+  const [activeView, setActiveView] = useState<ActiveView>('auth');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setActiveView('auth');
+      setLoading(false);
+      return;
+    }
+
+    getMe()
+      .then((res) => {
+        if (res.success) {
+          setCurrentUser(res.data);
+          setActiveView('dashboard');
+        } else {
+          handleLogout();
+        }
+      })
+      .catch(() => {
+        handleLogout();
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const handleLoginSuccess = (token: string, user: User) => {
+    localStorage.setItem('token', token);
+    setCurrentUser(user);
+    setActiveView('dashboard');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setCurrentUser(null);
+    setActiveView('auth');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-primary-container font-label-caps animate-pulse">
+          INICIALIZANDO SISTEMA...
+        </div>
+      </div>
+    );
+  }
+
+  if (activeView === 'auth') {
+    return <Auth onLoginSuccess={handleLoginSuccess} />;
+  }
 
   const renderView = () => {
     switch (activeView) {
-      case 'auth':
-        return <Auth />;
       case 'dashboard':
         return <Dashboard />;
       case 'perfil':
@@ -49,6 +102,11 @@ function App() {
             <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-slate-200 to-rose-500 bg-clip-text text-transparent">
               STREET RACE X
             </span>
+            {currentUser && (
+              <span className="hidden sm:inline-block text-[10px] text-rose-500 font-mono border border-rose-500/30 px-2 py-0.5 rounded uppercase tracking-wider">
+                PILOTO: {currentUser.username}
+              </span>
+            )}
           </div>
 
           <nav className="flex space-x-1 sm:space-x-2">
@@ -57,8 +115,7 @@ function App() {
               { id: 'retos', label: 'Retos', icon: Trophy },
               { id: 'vehiculos', label: 'Garaje', icon: Car },
               { id: 'notificaciones', label: 'Alertas', icon: Bell },
-              { id: 'perfil', label: 'Perfil', icon: User },
-              { id: 'auth', label: 'Acceso', icon: Shield },
+              { id: 'perfil', label: 'Perfil', icon: UserIcon },
             ].map((item) => {
               const Icon = item.icon;
               const isActive = activeView === item.id;
@@ -77,6 +134,13 @@ function App() {
                 </button>
               );
             })}
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden md:inline">Salir</span>
+            </button>
           </nav>
         </div>
       </header>
