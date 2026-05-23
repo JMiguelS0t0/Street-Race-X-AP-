@@ -97,3 +97,38 @@ body {
   pointer-events: none;
   opacity: 0.3;
 }
+
+.hud-notch {
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+}
+
+.speed-lines {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 5px,
+    rgba(0, 227, 253, 0.2) 5px,
+    rgba(0, 227, 253, 0.2) 6px
+  );
+}
+
+.glow-primary { box-shadow: 0 0 12px #ff5719; }
+.glow-secondary { box-shadow: 0 0 8px #00e3fd; }
+.glow-tertiary { box-shadow: 0 0 15px #2ae500; }
+
+.carbon-fiber-hud {
+  background-color: #131313;
+  color: #e5e2e1;
+  background-image: radial-gradient(circle at center, rgba(20,20,20,0) 0%, rgba(10,10,10,0.8) 100%), 
+                    linear-gradient(45deg, #131313 25%, transparent 25%, transparent 75%, #131313 75%, #131313), 
+                    linear-gradient(45deg, #131313 25%, transparent 25%, transparent 75%, #131313 75%, #131313);
+  background-size: 100% 100%, 10px 10px, 10px 10px;
+  background-position: 0 0, 0 0, 5px 5px;
+  background-attachment: fixed;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0e0e0e; }
+::-webkit-scrollbar-thumb { background: #353535; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #ff5719; }
+

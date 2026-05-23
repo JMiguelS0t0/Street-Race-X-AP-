@@ -11,11 +11,12 @@ const BG_IMAGE = 'https://lh3.googleusercontent.com/aida-public/AB6AXuAS78eGry0f
 
 export default function Auth({ onLoginSuccess }: AuthProps) {
   const [tab, setTab] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => localStorage.getItem('rememberedEmail') || '');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rememberRig, setRememberRig] = useState(() => localStorage.getItem('rememberRig') === 'true');
 
   const handleLoginSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -24,6 +25,13 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
     try {
       const res = await login({ email, password });
       if (res.success) {
+        if (rememberRig) {
+          localStorage.setItem('rememberedEmail', email);
+          localStorage.setItem('rememberRig', 'true');
+        } else {
+          localStorage.removeItem('rememberedEmail');
+          localStorage.removeItem('rememberRig');
+        }
         onLoginSuccess(res.data.token, res.data.user);
       } else {
         setError(res.message || 'Error al iniciar sesión');
@@ -65,7 +73,6 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
       className="min-h-screen flex flex-col lg:flex-row antialiased overflow-hidden"
       style={{ backgroundColor: '#131313', color: '#e5e2e1', fontFamily: '"Hanken Grotesk", sans-serif' }}
     >
-      {/* Panel Izquierdo - Branding */}
       <div className="hidden lg:flex w-1/2 relative scanlines" style={{ backgroundColor: '#0e0e0e', borderRight: '1px solid rgba(92,64,55,0.3)' }}>
         <div
           className="absolute inset-0 bg-cover bg-center"
@@ -121,7 +128,6 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
         </div>
       </div>
 
-      {/* Panel Derecho - Consola de Acceso */}
       <div
         className="w-full lg:w-1/2 min-h-screen flex items-center justify-center relative"
         style={{ backgroundColor: '#131313', padding: '16px' }}
@@ -146,7 +152,6 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
             boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
           }}
         >
-          {/* Corner Notch */}
           <div
             className="absolute"
             style={{
@@ -159,7 +164,6 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
             }}
           />
 
-          {/* Logo Móvil */}
           <div className="lg:hidden text-center" style={{ marginBottom: '32px' }}>
             <h1
               style={{
@@ -176,7 +180,6 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
             </h1>
           </div>
 
-          {/* Tabs LOGIN / REGISTER */}
           <div className="flex gap-1" style={{ marginBottom: '32px', backgroundColor: '#0e0e0e', padding: '4px', transform: 'skewX(-12deg)' }}>
             <button
               type="button"
@@ -222,7 +225,6 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
             </button>
           </div>
 
-          {/* Error Alert */}
           {error && (
             <div
               style={{
@@ -239,7 +241,6 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
             </div>
           )}
 
-          {/* LOGIN Form */}
           {tab === 'login' && (
             <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div className="input-group" style={{ position: 'relative' }}>
@@ -333,6 +334,8 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <input
                     type="checkbox"
+                    checked={rememberRig}
+                    onChange={(e) => setRememberRig(e.target.checked)}
                     style={{
                       backgroundColor: '#20201f',
                       border: '1px solid #5c4037',
@@ -396,7 +399,6 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
             </form>
           )}
 
-          {/* REGISTER Form */}
           {tab === 'register' && (
             <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div className="input-group" style={{ position: 'relative' }}>
@@ -506,8 +508,6 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
               </button>
             </form>
           )}
-
-
         </div>
       </div>
     </div>
