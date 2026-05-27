@@ -6,106 +6,95 @@ import prisma from '../config/prisma';
 import { extractToken } from '../middlewares/auth.middleware';
 import { sendSuccess, sendError, sendNotFound } from '../utils/response';
 import { generateToken, excludePassword } from '../utils/auth';
+import { asyncHandler } from '../utils/asyncHandler';
 
-export const register = async (req: Request, res: Response) => {
-  try {
-    const { 
-      username, email, password, foto_perfil, 
-      zona_localidad, zona_ciudad, zona_estado, zona_pais 
-    } = req.body;
+export const register = asyncHandler(async (req: Request, res: Response) => {
+  const { 
+    username, email, password, foto_perfil, 
+    zona_localidad, zona_ciudad, zona_estado, zona_pais 
+  } = req.body;
 
-    const existingUser = await prisma.user.findFirst({
-      where: { OR: [{ email }, { username }] }
-    });
+  const existingUser = await prisma.user.findFirst({
+    where: { OR: [{ email }, { username }] }
+  });
 
-    if (existingUser) {
-      return sendError(
-        res,
-        existingUser.email === email ? 'Email ya registrado' : 'Username ya registrado',
-        400
-      );
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        username,
-        email,
-        password_hash: hashedPassword,
-        foto_perfil,
-        zona_localidad,
-        zona_ciudad,
-        zona_estado,
-        zona_pais,
-        rango: 'D',
-        rol: 'piloto',
-        estado: 'activo'
-      }
-    });
-
-    const token = generateToken(user);
-    const userWithoutPassword = excludePassword(user);
-
-    sendSuccess(
+  if (existingUser) {
+    return sendError(
       res,
-      { user: userWithoutPassword, token },
-      'Cuenta creada exitosamente',
-      201
+      existingUser.email === email ? 'Email ya registrado' : 'Username ya registrado',
+      400
     );
-  } catch (error: any) {
-    sendError(res, 'Error al registrar usuario', 500, [error.message]);
   }
-};
 
-export const login = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.findUnique({ where: { email } });
-
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-      return sendError(res, 'Credenciales inválidas', 401);
+  const user = await prisma.user.create({
+    data: {
+      username,
+      email,
+      password_hash: hashedPassword,
+      foto_perfil,
+      zona_localidad,
+      zona_ciudad,
+      zona_estado,
+      zona_pais,
+      rango: 'D',
+      rol: 'piloto',
+      estado: 'activo'
     }
+  });
 
-    if (user.estado === 'suspendido') {
-      return sendError(res, 'Cuenta suspendida', 401);
-    }
+  const token = generateToken(user);
+  const userWithoutPassword = excludePassword(user);
 
-    const token = generateToken(user);
-    const userWithoutPassword = excludePassword(user);
+  sendSuccess(
+    res,
+    { user: userWithoutPassword, token },
+    'Cuenta creada exitosamente',
+    201
+  );
+});
 
-    sendSuccess(res, { user: userWithoutPassword, token }, 'Login exitoso');
-  } catch (error: any) {
-    sendError(res, 'Error al iniciar sesión', 500, [error.message]);
+export const login = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    return sendError(res, 'Credenciales inválidas', 401);
   }
-};
 
-export const logout = async (req: Request, res: Response) => {
+  if (user.estado === 'suspendido') {
+    return sendError(res, 'Cuenta suspendida', 401);
+  }
+
+  const token = generateToken(user);
+  const userWithoutPassword = excludePassword(user);
+
+  sendSuccess(res, { user: userWithoutPassword, token }, 'Login exitoso');
+});
+
+export const logout = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, undefined, 'Sesión cerrada correctamente');
-};
+});
 
-export const getMe = async (req: Request, res: Response) => {
+export const getMe = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: authReq.user.id },
-      include: { categoria: true }
-    });
+  const user = await prisma.user.findUnique({
+    where: { id: authReq.user.id },
+    include: { categoria: true }
+  });
 
-    if (!user) {
-      return sendNotFound(res, 'Usuario');
-    }
-
-    const userWithoutPassword = excludePassword(user);
-
-    sendSuccess(res, userWithoutPassword);
-  } catch (error: any) {
-    sendError(res, 'Error al obtener perfil');
+  if (!user) {
+    return sendNotFound(res, 'Usuario');
   }
-};
 
-export const refreshToken = async (req: Request, res: Response) => {
+  const userWithoutPassword = excludePassword(user);
+
+  sendSuccess(res, userWithoutPassword);
+});
+
+export const refreshToken = asyncHandler(async (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token) {
     return sendError(res, 'Token no proporcionado', 401);
@@ -136,5 +125,4 @@ export const refreshToken = async (req: Request, res: Response) => {
   } catch (error: any) {
     sendError(res, 'Token inválido', 401, [error.message]);
   }
-};
-
+});
