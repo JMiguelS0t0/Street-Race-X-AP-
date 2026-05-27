@@ -20,6 +20,10 @@ interface CompleteChallengeInput {
 export const processChallengeCompletion = async (input: CompleteChallengeInput) => {
   const { challengeId, ganadorId, perdedorId, retadorUsername, retadoUsername, isRetadorWinner } = input;
 
+  if (!challengeId) {
+    throw new Error('challengeId is required');
+  }
+
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.challenge.update({
       where: { id: challengeId },
