@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import app from './app';
 import { socketAuthMiddleware } from './middlewares/socketAuth.middleware';
 import { registerChatHandlers } from './sockets/chat.socket';
+import { registerLocationHandlers } from './sockets/location.socket';
 
 const PORT = process.env.PORT || 2999;
 
@@ -22,6 +23,7 @@ io.use(socketAuthMiddleware);
 
 // Register WebSocket handlers
 registerChatHandlers(io);
+registerLocationHandlers(io);
 
 server.listen(PORT, () => {
   console.log(`[server]: Server is running at http://localhost:${PORT}`);
