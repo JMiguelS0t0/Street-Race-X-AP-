@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma';
 import { extractToken } from '../middlewares/auth.middleware';
 import { sendSuccess, sendError, sendNotFound } from '../utils/response';
+import { generateToken, excludePassword } from '../utils/auth';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -43,13 +44,8 @@ export const register = async (req: Request, res: Response) => {
       }
     });
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username, rol: user.rol },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' }
-    );
-
-    const { password_hash: _, ...userWithoutPassword } = user;
+    const token = generateToken(user);
+    const userWithoutPassword = excludePassword(user);
 
     sendSuccess(
       res,
@@ -76,13 +72,8 @@ export const login = async (req: Request, res: Response) => {
       return sendError(res, 'Cuenta suspendida', 401);
     }
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username, rol: user.rol },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' }
-    );
-
-    const { password_hash: _, ...userWithoutPassword } = user;
+    const token = generateToken(user);
+    const userWithoutPassword = excludePassword(user);
 
     sendSuccess(res, { user: userWithoutPassword, token }, 'Login exitoso');
   } catch (error: any) {
@@ -106,7 +97,7 @@ export const getMe = async (req: Request, res: Response) => {
       return sendNotFound(res, 'Usuario');
     }
 
-    const { password_hash: _, ...userWithoutPassword } = user;
+    const userWithoutPassword = excludePassword(user);
 
     sendSuccess(res, userWithoutPassword);
   } catch (error: any) {
@@ -139,11 +130,7 @@ export const refreshToken = async (req: Request, res: Response) => {
       return sendError(res, 'Usuario no existe o está suspendido', 401);
     }
 
-    const newToken = jwt.sign(
-      { id: user.id, username: user.username, rol: user.rol },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' }
-    );
+    const newToken = generateToken(user);
 
     sendSuccess(res, { token: newToken }, 'Token renovado');
   } catch (error: any) {
