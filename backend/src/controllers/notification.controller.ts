@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
+import { sendSuccess, sendError } from '../utils/response';
 
 export const listNotifications = async (req: any, res: Response) => {
   try {
@@ -8,9 +9,9 @@ export const listNotifications = async (req: any, res: Response) => {
       orderBy: { created_at: 'desc' },
       take: 50
     });
-    res.json({ success: true, data: notifications });
+    sendSuccess(res, notifications);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al listar notificaciones' });
+    sendError(res, 'Error al listar notificaciones');
   }
 };
 
@@ -24,16 +25,16 @@ export const updateNotification = async (req: any, res: Response) => {
     });
 
     if (!existingNotification) {
-      return res.status(404).json({ success: false, error: 'Notificación no encontrada o no tienes permiso para actualizarla' });
+      return sendError(res, 'Notificación no encontrada o no tienes permiso para actualizarla', 404);
     }
 
     const notification = await prisma.notification.update({
       where: { id },
       data: { leida }
     });
-    res.json({ success: true, message: 'Notificación actualizada', data: notification });
+    sendSuccess(res, notification, 'Notificación actualizada');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al actualizar notificación' });
+    sendError(res, 'Error al actualizar notificación');
   }
 };
 
@@ -46,12 +47,12 @@ export const bulkUpdateNotifications = async (req: any, res: Response) => {
         where: { user_id: req.user.id, leida: false },
         data: { leida: true }
       });
-      return res.json({ success: true, message: 'Todas las notificaciones marcadas como leídas' });
+      return sendSuccess(res, undefined, 'Todas las notificaciones marcadas como leídas');
     }
     
-    res.json({ success: true, message: 'No se realizaron cambios' });
+    sendSuccess(res, undefined, 'No se realizaron cambios');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al actualizar notificaciones en lote' });
+    sendError(res, 'Error al actualizar notificaciones en lote');
   }
 };
 
@@ -63,10 +64,11 @@ export const deleteNotification = async (req: any, res: Response) => {
     });
 
     if (deletedResult.count === 0) {
-      return res.status(404).json({ success: false, error: 'Notificación no encontrada o no tienes permiso para eliminarla' });
+      return sendError(res, 'Notificación no encontrada o no tienes permiso para eliminarla', 404);
     }
-    res.json({ success: true, message: 'Notificación eliminada' });
+    sendSuccess(res, undefined, 'Notificación eliminada');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al eliminar notificación' });
+    sendError(res, 'Error al eliminar notificación');
   }
 };
+

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma';
 import { extractToken } from '../middlewares/auth.middleware';
+import { sendSuccess, sendError, sendNotFound } from '../utils/response';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -16,11 +17,11 @@ export const register = async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        error: existingUser.email === email ? 'Email ya registrado' : 'Username ya registrado',
-        statusCode: 400
-      });
+      return sendError(
+        res,
+        existingUser.email === email ? 'Email ya registrado' : 'Username ya registrado',
+        400
+      );
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -49,18 +50,14 @@ export const register = async (req: Request, res: Response) => {
 
     const { password_hash: _, ...userWithoutPassword } = user;
 
-    res.status(201).json({
-      success: true,
-      message: 'Cuenta creada exitosamente',
-      data: { user: userWithoutPassword, token }
-    });
+    sendSuccess(
+      res,
+      { user: userWithoutPassword, token },
+      'Cuenta creada exitosamente',
+      201
+    );
   } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: 'Error al registrar usuario',
-      statusCode: 500,
-      details: [error.message]
-    });
+    sendError(res, 'Error al registrar usuario', 500, [error.message]);
   }
 };
 
@@ -71,19 +68,11 @@ export const login = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-      return res.status(401).json({
-        success: false,
-        error: 'Credenciales inválidas',
-        statusCode: 401
-      });
+      return sendError(res, 'Credenciales inválidas', 401);
     }
 
     if (user.estado === 'suspendido') {
-      return res.status(401).json({
-        success: false,
-        error: 'Cuenta suspendida',
-        statusCode: 401
-      });
+      return sendError(res, 'Cuenta suspendida', 401);
     }
 
     const token = jwt.sign(
@@ -94,26 +83,14 @@ export const login = async (req: Request, res: Response) => {
 
     const { password_hash: _, ...userWithoutPassword } = user;
 
-    res.status(200).json({
-      success: true,
-      message: 'Login exitoso',
-      data: { user: userWithoutPassword, token }
-    });
+    sendSuccess(res, { user: userWithoutPassword, token }, 'Login exitoso');
   } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: 'Error al iniciar sesión',
-      statusCode: 500,
-      details: [error.message]
-    });
+    sendError(res, 'Error al iniciar sesión', 500, [error.message]);
   }
 };
 
 export const logout = async (req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    message: 'Sesión cerrada correctamente'
-  });
+  sendSuccess(res, undefined, 'Sesión cerrada correctamente');
 };
 
 export const getMe = async (req: any, res: Response) => {
@@ -124,40 +101,40 @@ export const getMe = async (req: any, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+      return sendNotFound(res, 'Usuario');
     }
 
     const { password_hash: _, ...userWithoutPassword } = user;
 
-    res.status(200).json({ success: true, data: userWithoutPassword });
+    sendSuccess(res, userWithoutPassword);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al obtener perfil' });
+    sendError(res, 'Error al obtener perfil');
   }
 };
 
 export const refreshToken = async (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token) {
-    return res.status(401).json({ success: false, error: 'Token no proporcionado' });
+    return sendError(res, 'Token no proporcionado', 401);
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string, { ignoreExpiration: true }) as any;
     
     if (!decoded || !decoded.id) {
-       return res.status(401).json({ success: false, error: 'Token inválido' });
+       return sendError(res, 'Token inválido', 401);
     }
 
     const MAX_AGE_SECONDS = 86400; // 1 día
     const currentTimestamp = Math.floor(Date.now() / 1000);
     if (decoded.iat && currentTimestamp - decoded.iat > MAX_AGE_SECONDS) {
-      return res.status(401).json({ success: false, error: 'El token ha excedido el límite de antigüedad para ser renovado. Por favor inicia sesión nuevamente.' });
+      return sendError(res, 'El token ha excedido el límite de antigüedad para ser renovado. Por favor inicia sesión nuevamente.', 401);
     }
 
     const user = await prisma.user.findUnique({ where: { id: decoded.id } });
     
     if (!user || user.estado === 'suspendido') {
-      return res.status(401).json({ success: false, error: 'Usuario no existe o está suspendido' });
+      return sendError(res, 'Usuario no existe o está suspendido', 401);
     }
 
     const newToken = jwt.sign(
@@ -166,8 +143,9 @@ export const refreshToken = async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ success: true, message: 'Token renovado', data: { token: newToken } });
+    sendSuccess(res, { token: newToken }, 'Token renovado');
   } catch (error: any) {
-    res.status(401).json({ success: false, error: 'Token inválido', details: [error.message] });
+    sendError(res, 'Token inválido', 401, [error.message]);
   }
 };
+

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma';
+import { sendSuccess, sendError, sendNotFound } from '../utils/response';
 
 export const listAllUsers = async (req: Request, res: Response) => {
   try {
@@ -21,12 +22,9 @@ export const listAllUsers = async (req: Request, res: Response) => {
 
     const total = await prisma.user.count();
 
-    res.json({ 
-      success: true, 
-      data: { users, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } } 
-    });
+    sendSuccess(res, { users, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al listar usuarios' });
+    sendError(res, 'Error al listar usuarios');
   }
 };
 
@@ -54,12 +52,12 @@ export const getPublicProfile = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ success: false, error: 'Piloto no encontrado' });
+      return sendNotFound(res, 'Piloto');
     }
 
-    res.json({ success: true, data: user });
+    sendSuccess(res, user);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al obtener perfil público' });
+    sendError(res, 'Error al obtener perfil público');
   }
 };
 
@@ -85,10 +83,7 @@ export const discoverPilots = async (req: any, res: Response) => {
     });
 
     if (!me || (!tipoVehiculoFilter && me.vehicles.length === 0)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Debes tener un vehículo marcado como activo para descubrir rivales'
-      });
+      return sendError(res, 'Debes tener un vehículo marcado como activo para descubrir rivales', 400);
     }
 
     const activeVehicleType = tipoVehiculoFilter || me.vehicles[0]?.tipo_vehiculo;
@@ -129,12 +124,9 @@ export const discoverPilots = async (req: any, res: Response) => {
 
     const total = await prisma.user.count({ where: whereClause });
 
-    res.json({ 
-      success: true, 
-      data: { pilots, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } } 
-    });
+    sendSuccess(res, { pilots, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error en descubrimiento de pilotos' });
+    sendError(res, 'Error en descubrimiento de pilotos');
   }
 };
 
@@ -148,18 +140,18 @@ export const updateProfile = async (req: any, res: Response) => {
       select: { id: true, username: true, email: true, foto_perfil: true, zona_ciudad: true }
     });
 
-    res.json({ success: true, message: 'Perfil actualizado', data: user });
+    sendSuccess(res, user, 'Perfil actualizado');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al actualizar perfil' });
+    sendError(res, 'Error al actualizar perfil');
   }
 };
 
 export const deleteMe = async (req: any, res: Response) => {
   try {
     await prisma.user.delete({ where: { id: req.user.id } });
-    res.json({ success: true, message: 'Cuenta eliminada permanentemente' });
+    sendSuccess(res, undefined, 'Cuenta eliminada permanentemente');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al eliminar cuenta' });
+    sendError(res, 'Error al eliminar cuenta');
   }
 };
 
@@ -170,9 +162,9 @@ export const getRankHistory = async (req: any, res: Response) => {
       where: { user_id: userId },
       orderBy: { fecha: 'desc' }
     });
-    res.json({ success: true, data: history });
+    sendSuccess(res, history);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al obtener historial de rangos' });
+    sendError(res, 'Error al obtener historial de rangos');
   }
 };
 
@@ -205,9 +197,9 @@ export const getTopRanking = async (req: Request, res: Response) => {
       orderBy: orderByClause,
       take: limit
     });
-    res.json({ success: true, data: ranking });
+    sendSuccess(res, ranking);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al obtener ranking' });
+    sendError(res, 'Error al obtener ranking');
   }
 };
 
@@ -222,9 +214,9 @@ export const adminUpdateUser = async (req: Request, res: Response) => {
       select: { id: true, username: true, email: true, estado: true, rol: true, rango: true }
     });
 
-    res.json({ success: true, message: 'Usuario actualizado por administrador', data: user });
+    sendSuccess(res, user, 'Usuario actualizado por administrador');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al actualizar usuario' });
+    sendError(res, 'Error al actualizar usuario');
   }
 };
 
@@ -232,8 +224,9 @@ export const adminDeleteUser = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
     await prisma.user.delete({ where: { id } });
-    res.json({ success: true, message: 'Usuario eliminado por administrador' });
+    sendSuccess(res, undefined, 'Usuario eliminado por administrador');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al eliminar usuario' });
+    sendError(res, 'Error al eliminar usuario');
   }
 };
+

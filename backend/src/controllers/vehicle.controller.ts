@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
+import { sendSuccess, sendError, sendNotFound } from '../utils/response';
 
 export const listVehicles = async (req: any, res: Response) => {
   try {
@@ -7,9 +8,9 @@ export const listVehicles = async (req: any, res: Response) => {
       where: { user_id: req.user.id },
       orderBy: { created_at: 'desc' }
     });
-    res.json({ success: true, data: vehicles });
+    sendSuccess(res, vehicles);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al listar vehículos' });
+    sendError(res, 'Error al listar vehículos');
   }
 };
 
@@ -19,10 +20,10 @@ export const getVehicleDetail = async (req: any, res: Response) => {
     const vehicle = await prisma.vehicle.findFirst({
       where: { id, user_id: req.user.id }
     });
-    if (!vehicle) return res.status(404).json({ success: false, error: 'Vehículo no encontrado' });
-    res.json({ success: true, data: vehicle });
+    if (!vehicle) return sendNotFound(res, 'Vehículo');
+    sendSuccess(res, vehicle);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al obtener detalle del vehículo' });
+    sendError(res, 'Error al obtener detalle del vehículo');
   }
 };
 
@@ -32,7 +33,7 @@ export const createVehicle = async (req: any, res: Response) => {
 
     const existingVehicles = await prisma.vehicle.count({ where: { user_id: req.user.id } });
     if (existingVehicles >= 3) {
-      return res.status(400).json({ success: false, error: 'Has alcanzado el límite máximo de 3 vehículos' });
+      return sendError(res, 'Has alcanzado el límite máximo de 3 vehículos', 400);
     }
 
     const isActivo = activo !== undefined ? activo : (existingVehicles === 0);
@@ -61,9 +62,9 @@ export const createVehicle = async (req: any, res: Response) => {
       });
     }
 
-    res.status(201).json({ success: true, message: 'Vehículo registrado', data: vehicle });
+    sendSuccess(res, vehicle, 'Vehículo registrado', 201);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al registrar vehículo' });
+    sendError(res, 'Error al registrar vehículo');
   }
 };
 
@@ -77,7 +78,7 @@ export const updateVehicle = async (req: any, res: Response) => {
     });
 
     if (!existingVehicle) {
-      return res.status(404).json({ success: false, error: 'Vehículo no encontrado o no tienes permiso para actualizarlo' });
+      return sendError(res, 'Vehículo no encontrado o no tienes permiso para actualizarlo', 404);
     }
 
     if (activo === true) {
@@ -91,14 +92,14 @@ export const updateVehicle = async (req: any, res: Response) => {
           data: { marca, modelo, año, color, placa, foto, modificaciones, activo: true }
         })
       ]);
-      return res.json({ success: true, message: 'Vehículo actualizado y marcado como activo para competir' });
+      return sendSuccess(res, undefined, 'Vehículo actualizado y marcado como activo para competir');
     } else if (activo === false) {
       // Permitimos desactivar el vehículo manualmente si el piloto no quiere competir temporalmente.
       const vehicle = await prisma.vehicle.update({
         where: { id },
         data: { marca, modelo, año, color, placa, foto, modificaciones, activo: false }
       });
-      return res.json({ success: true, message: 'Vehículo actualizado', data: vehicle });
+      return sendSuccess(res, vehicle, 'Vehículo actualizado');
     }
 
     const vehicle = await prisma.vehicle.update({
@@ -106,9 +107,9 @@ export const updateVehicle = async (req: any, res: Response) => {
       data: { marca, modelo, año, color, placa, foto, modificaciones }
     });
 
-    res.json({ success: true, message: 'Vehículo actualizado', data: vehicle });
+    sendSuccess(res, vehicle, 'Vehículo actualizado');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al actualizar vehículo' });
+    sendError(res, 'Error al actualizar vehículo');
   }
 };
 
@@ -127,20 +128,18 @@ export const deleteVehicle = async (req: any, res: Response) => {
     });
 
     if (activeChallenges > 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No se puede eliminar un vehículo con retos activos o pendientes'
-      });
+      return sendError(res, 'No se puede eliminar un vehículo con retos activos o pendientes', 400);
     }
 
     const deletedResult = await prisma.vehicle.deleteMany({ where: { id, user_id: req.user.id } });
 
     if (deletedResult.count === 0) {
-      return res.status(404).json({ success: false, error: 'Vehículo no encontrado o no tienes permiso para eliminarlo' });
+      return sendError(res, 'Vehículo no encontrado o no tienes permiso para eliminarlo', 404);
     }
 
-    res.json({ success: true, message: 'Vehículo eliminado' });
+    sendSuccess(res, undefined, 'Vehículo eliminado');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al eliminar vehículo' });
+    sendError(res, 'Error al eliminar vehículo');
   }
 };
+

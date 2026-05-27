@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma';
+import { sendSuccess, sendError, sendNotFound } from '../utils/response';
 
 export const listCategories = async (req: Request, res: Response) => {
   try {
@@ -7,9 +8,9 @@ export const listCategories = async (req: Request, res: Response) => {
       where: { activo: true },
       orderBy: { nombre: 'asc' }
     });
-    res.json({ success: true, data: categories });
+    sendSuccess(res, categories);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al listar categorías' });
+    sendError(res, 'Error al listar categorías');
   }
 };
 
@@ -19,9 +20,9 @@ export const createCategory = async (req: Request, res: Response) => {
     const category = await prisma.category.create({
       data: { nombre, descripcion }
     });
-    res.status(201).json({ success: true, message: 'Categoría creada', data: category });
+    sendSuccess(res, category, 'Categoría creada', 201);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al crear categoría' });
+    sendError(res, 'Error al crear categoría');
   }
 };
 
@@ -33,9 +34,9 @@ export const updateCategory = async (req: Request, res: Response) => {
       where: { id },
       data: { nombre, descripcion, activo }
     });
-    res.json({ success: true, message: 'Categoría actualizada', data: category });
+    sendSuccess(res, category, 'Categoría actualizada');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al actualizar categoría' });
+    sendError(res, 'Error al actualizar categoría');
   }
 };
 
@@ -47,9 +48,9 @@ export const deleteCategory = async (req: Request, res: Response) => {
       where: { id },
       data: { activo: false }
     });
-    res.json({ success: true, message: 'Categoría desactivada' });
+    sendSuccess(res, undefined, 'Categoría desactivada');
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al eliminar categoría' });
+    sendError(res, 'Error al eliminar categoría');
   }
 };
 
@@ -61,11 +62,12 @@ export const getCategoryDetail = async (req: Request, res: Response) => {
     });
     
     if (!category) {
-      return res.status(404).json({ success: false, error: 'Categoría no encontrada' });
+      return sendNotFound(res, 'Categoría');
     }
     
-    res.json({ success: true, data: category });
+    sendSuccess(res, category);
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Error al obtener categoría' });
+    sendError(res, 'Error al obtener categoría');
   }
 };
+
