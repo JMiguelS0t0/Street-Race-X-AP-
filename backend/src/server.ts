@@ -1,9 +1,7 @@
 import http from 'http';
 import { Server } from 'socket.io';
 import app from './app';
-import { socketAuthMiddleware } from './middlewares/socketAuth.middleware';
-import { registerChatHandlers } from './sockets/chat.socket';
-import { registerLocationHandlers } from './sockets/location.socket';
+import { initSockets } from './sockets';
 
 const PORT = process.env.PORT || 2999;
 
@@ -18,12 +16,8 @@ const io = new Server(server, {
   }
 });
 
-// Attach Authentication Middleware to Socket.io
-io.use(socketAuthMiddleware);
-
-// Register WebSocket handlers
-registerChatHandlers(io);
-registerLocationHandlers(io);
+// Initialize socket manager (applies auth middleware and registers handlers)
+initSockets(io);
 
 server.listen(PORT, () => {
   console.log(`[server]: Server is running at http://localhost:${PORT}`);
