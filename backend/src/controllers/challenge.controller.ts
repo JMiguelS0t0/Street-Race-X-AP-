@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../config/prisma';
+import { parsePagination, buildPaginationMeta } from '../utils/pagination';
 
 const getNextRank = (currentRank: string): string => {
   const ranks = ['D', 'C', 'B', 'A', 'S'];
@@ -156,12 +157,7 @@ export const completeChallenge = async (req: any, res: Response) => {
 
 export const listChallenges = async (req: any, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const skip = (page - 1) * limit;
-
-    const sortField = (req.query.sort as string) || 'created_at';
-    const sortOrder = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
+    const { page, limit, skip, sortField, sortOrder } = parsePagination(req);
 
     const estadoFilter = req.query.estado as string;
     const tipoCarreraFilter = req.query.tipo_carrera as string;
@@ -194,7 +190,7 @@ export const listChallenges = async (req: any, res: Response) => {
 
     res.json({ 
       success: true, 
-      data: { challenges, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } } 
+      data: { challenges, pagination: buildPaginationMeta(total, page, limit) } 
     });
   } catch (error: any) {
     res.status(500).json({ success: false, error: 'Error al listar retos' });

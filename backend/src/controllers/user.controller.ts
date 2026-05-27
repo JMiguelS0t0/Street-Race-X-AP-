@@ -1,14 +1,10 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma';
+import { parsePagination, buildPaginationMeta } from '../utils/pagination';
 
 export const listAllUsers = async (req: Request, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const skip = (page - 1) * limit;
-
-    const sortField = (req.query.sort as string) || 'created_at';
-    const sortOrder = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
+    const { page, limit, skip, sortField, sortOrder } = parsePagination(req);
 
     const users = await prisma.user.findMany({
       skip,
@@ -23,7 +19,7 @@ export const listAllUsers = async (req: Request, res: Response) => {
 
     res.json({ 
       success: true, 
-      data: { users, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } } 
+      data: { users, pagination: buildPaginationMeta(total, page, limit) } 
     });
   } catch (error: any) {
     res.status(500).json({ success: false, error: 'Error al listar usuarios' });
@@ -65,9 +61,7 @@ export const getPublicProfile = async (req: Request, res: Response) => {
 
 export const discoverPilots = async (req: any, res: Response) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 20;
-    const page = parseInt(req.query.page as string) || 1;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePagination(req);
     
     const ciudadFilter = req.query.ciudad as string;
     const tipoVehiculoFilter = req.query.tipo_vehiculo as string;
@@ -131,7 +125,7 @@ export const discoverPilots = async (req: any, res: Response) => {
 
     res.json({ 
       success: true, 
-      data: { pilots, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } } 
+      data: { pilots, pagination: buildPaginationMeta(total, page, limit) } 
     });
   } catch (error: any) {
     res.status(500).json({ success: false, error: 'Error en descubrimiento de pilotos' });
