@@ -4,13 +4,8 @@ import prisma from '../config/prisma';
 import { sendSuccess, sendError, sendNotFound } from '../utils/response';
 import { AuthRequest, AuthenticatedRequest } from '../types';
 import { parsePagination, buildPaginationMeta } from '../utils/pagination';
+import { processChallengeCompletion } from '../services/challenge.service';
 
-const getNextRank = (currentRank: string): string => {
-  const ranks = ['D', 'C', 'B', 'A', 'S'];
-  const currentIndex = ranks.indexOf(currentRank);
-  if (currentIndex === -1 || currentIndex === ranks.length - 1) return currentRank;
-  return ranks[currentIndex + 1];
-};
 
 export const createChallenge = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
@@ -95,62 +90,13 @@ export const completeChallenge = async (req: Request, res: Response) => {
     const isRetadorWinner = ganador_id === challenge.retador_id;
     const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
 
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.challenge.update({
-        where: { id },
-        data: { estado: 'completado', ganador_id, updated_at: new Date() }
-      });
-
-      const winner = await tx.user.findUnique({ where: { id: ganador_id } });
-      if (winner) {
-        const newConsecutiveWins = (winner.retos_consecutivos || 0) + 1;
-        let newRank = winner.rango || 'D';
-        
-        if (newConsecutiveWins >= 2 && newRank !== 'S') {
-          const oldRank = newRank;
-          newRank = getNextRank(newRank);
-          
-          await tx.rankHistory.create({
-            data: { user_id: ganador_id, rango_anterior: oldRank, rango_nuevo: newRank }
-          });
-
-          await tx.notification.create({
-            data: { user_id: ganador_id, tipo: 'rango_subido', mensaje: `¡Felicidades! Has ascendido al rango ${newRank}` }
-          });
-
-          await tx.user.update({
-            where: { id: ganador_id },
-            data: { 
-              victorias: { increment: 1 }, 
-              rango: newRank, 
-              retos_consecutivos: 0 
-            }
-          });
-        } else {
-          await tx.user.update({
-            where: { id: ganador_id },
-            data: { 
-              victorias: { increment: 1 }, 
-              retos_consecutivos: newConsecutiveWins 
-            }
-          });
-        }
-      }
-
-      await tx.user.update({
-        where: { id: perdedor_id },
-        data: { 
-          derrotas: { increment: 1 }, 
-          retos_consecutivos: 0 
-        }
-      });
-
-      await tx.notification.create({
-        data: { user_id: ganador_id, tipo: 'resultado', mensaje: `Has ganado el reto contra ${isRetadorWinner ? challenge.retado.username : challenge.retador.username}` }
-      });
-      await tx.notification.create({
-        data: { user_id: perdedor_id, tipo: 'resultado', mensaje: `Has perdido el reto contra ${isRetadorWinner ? challenge.retador.username : challenge.retado.username}` }
-      });
+    await processChallengeCompletion({
+      challengeId: id,
+      ganadorId: ganador_id,
+      perdedorId: perdedor_id,
+      retadorUsername: challenge.retador.username,
+      retadoUsername: challenge.retado.username,
+      isRetadorWinner
     });
 
     sendSuccess(res, undefined, 'Reto completado y estadísticas actualizadas');
@@ -284,62 +230,13 @@ export const updateChallenge = async (req: Request, res: Response) => {
       const isRetadorWinner = ganador_id === challenge.retador_id;
       const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
 
-      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        await tx.challenge.update({
-          where: { id },
-          data: { estado: 'completado', ganador_id, updated_at: new Date() }
-        });
-
-        const winner = await tx.user.findUnique({ where: { id: ganador_id } });
-        if (winner) {
-          const newConsecutiveWins = (winner.retos_consecutivos || 0) + 1;
-          let newRank = winner.rango || 'D';
-          
-          if (newConsecutiveWins >= 2 && newRank !== 'S') {
-            const oldRank = newRank;
-            newRank = getNextRank(newRank);
-            
-            await tx.rankHistory.create({
-              data: { user_id: ganador_id, rango_anterior: oldRank, rango_nuevo: newRank }
-            });
-
-            await tx.notification.create({
-              data: { user_id: ganador_id, tipo: 'rango_subido', mensaje: `¡Felicidades! Has ascendido al rango ${newRank}` }
-            });
-
-            await tx.user.update({
-              where: { id: ganador_id },
-              data: { 
-                victorias: { increment: 1 }, 
-                rango: newRank, 
-                retos_consecutivos: 0 
-              }
-            });
-          } else {
-            await tx.user.update({
-              where: { id: ganador_id },
-              data: { 
-                victorias: { increment: 1 }, 
-                retos_consecutivos: newConsecutiveWins 
-              }
-            });
-          }
-        }
-
-        await tx.user.update({
-          where: { id: perdedor_id },
-          data: { 
-            derrotas: { increment: 1 }, 
-            retos_consecutivos: 0 
-          }
-        });
-
-        await tx.notification.create({
-          data: { user_id: ganador_id, tipo: 'resultado', mensaje: `Has ganado el reto contra ${isRetadorWinner ? challenge.retado.username : challenge.retador.username}` }
-        });
-        await tx.notification.create({
-          data: { user_id: perdedor_id, tipo: 'resultado', mensaje: `Has perdido el reto contra ${isRetadorWinner ? challenge.retador.username : challenge.retado.username}` }
-        });
+      await processChallengeCompletion({
+        challengeId: id,
+        ganadorId: ganador_id,
+        perdedorId: perdedor_id,
+        retadorUsername: challenge.retador.username,
+        retadoUsername: challenge.retado.username,
+        isRetadorWinner
       });
 
       return sendSuccess(res, undefined, 'Reto completado y estadísticas actualizadas');
