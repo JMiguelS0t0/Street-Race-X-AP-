@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma';
 import { extractToken } from '../middlewares/auth.middleware';
+import { generateToken, excludePassword } from '../utils/auth';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -41,13 +42,8 @@ export const register = async (req: Request, res: Response) => {
       }
     });
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username, rol: user.rol },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' }
-    );
-
-    const { password_hash: _, ...userWithoutPassword } = user;
+    const token = generateToken(user);
+    const userWithoutPassword = excludePassword(user);
 
     res.status(201).json({
       success: true,
@@ -86,13 +82,8 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username, rol: user.rol },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' }
-    );
-
-    const { password_hash: _, ...userWithoutPassword } = user;
+    const token = generateToken(user);
+    const userWithoutPassword = excludePassword(user);
 
     res.status(200).json({
       success: true,
@@ -127,7 +118,7 @@ export const getMe = async (req: any, res: Response) => {
       return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
     }
 
-    const { password_hash: _, ...userWithoutPassword } = user;
+    const userWithoutPassword = excludePassword(user);
 
     res.status(200).json({ success: true, data: userWithoutPassword });
   } catch (error: any) {
@@ -160,11 +151,7 @@ export const refreshToken = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, error: 'Usuario no existe o está suspendido' });
     }
 
-    const newToken = jwt.sign(
-      { id: user.id, username: user.username, rol: user.rol },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' }
-    );
+    const newToken = generateToken(user);
 
     res.json({ success: true, message: 'Token renovado', data: { token: newToken } });
   } catch (error: any) {
