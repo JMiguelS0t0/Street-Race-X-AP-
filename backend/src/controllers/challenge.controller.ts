@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../config/prisma';
 import { sendSuccess, sendError, sendNotFound } from '../utils/response';
 import { AuthRequest, AuthenticatedRequest } from '../types';
+import { parsePagination, buildPaginationMeta } from '../utils/pagination';
 
 const getNextRank = (currentRank: string): string => {
   const ranks = ['D', 'C', 'B', 'A', 'S'];
@@ -161,12 +162,7 @@ export const completeChallenge = async (req: Request, res: Response) => {
 export const listChallenges = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const skip = (page - 1) * limit;
-
-    const sortField = (req.query.sort as string) || 'created_at';
-    const sortOrder = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
+    const { page, limit, skip, sortField, sortOrder } = parsePagination(req);
 
     const estadoFilter = req.query.estado as string;
     const tipoCarreraFilter = req.query.tipo_carrera as string;
@@ -197,7 +193,7 @@ export const listChallenges = async (req: Request, res: Response) => {
 
     const total = await prisma.challenge.count({ where: whereClause });
 
-    sendSuccess(res, { challenges, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } });
+    sendSuccess(res, { challenges, pagination: buildPaginationMeta(total, page, limit) });
   } catch (error: any) {
     sendError(res, 'Error al listar retos');
   }
