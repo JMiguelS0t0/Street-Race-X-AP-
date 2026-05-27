@@ -1,9 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { AuthRequest, JwtPayload } from '../types';
 
-interface AuthRequest extends Request {
-  user?: any;
-}
 
 export const extractToken = (req: Request): string | null => {
   const authHeader = req.headers.authorization;
@@ -26,7 +24,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-    req.user = decoded;
+    req.user = decoded as JwtPayload;
     next();
   } catch (error) {
     return res.status(401).json({

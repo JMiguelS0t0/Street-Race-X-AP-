@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma';
+import { AuthRequest, AuthenticatedRequest } from '../types';
 
 export const listAllUsers = async (req: Request, res: Response) => {
   try {
@@ -63,7 +64,8 @@ export const getPublicProfile = async (req: Request, res: Response) => {
   }
 };
 
-export const discoverPilots = async (req: any, res: Response) => {
+export const discoverPilots = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const limit = parseInt(req.query.limit as string) || 20;
     const page = parseInt(req.query.page as string) || 1;
@@ -73,7 +75,7 @@ export const discoverPilots = async (req: any, res: Response) => {
     const tipoVehiculoFilter = req.query.tipo_vehiculo as string;
 
     const me = await prisma.user.findUnique({
-      where: { id: req.user.id },
+      where: { id: authReq.user.id },
       select: {
         id: true,
         rango: true,
@@ -138,12 +140,13 @@ export const discoverPilots = async (req: any, res: Response) => {
   }
 };
 
-export const updateProfile = async (req: any, res: Response) => {
+export const updateProfile = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const { foto_perfil, zona_localidad, zona_ciudad, zona_estado, zona_pais } = req.body;
     
     const user = await prisma.user.update({
-      where: { id: req.user.id },
+      where: { id: authReq.user.id },
       data: { foto_perfil, zona_localidad, zona_ciudad, zona_estado, zona_pais },
       select: { id: true, username: true, email: true, foto_perfil: true, zona_ciudad: true }
     });
@@ -154,18 +157,20 @@ export const updateProfile = async (req: any, res: Response) => {
   }
 };
 
-export const deleteMe = async (req: any, res: Response) => {
+export const deleteMe = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    await prisma.user.delete({ where: { id: req.user.id } });
+    await prisma.user.delete({ where: { id: authReq.user.id } });
     res.json({ success: true, message: 'Cuenta eliminada permanentemente' });
   } catch (error: any) {
     res.status(500).json({ success: false, error: 'Error al eliminar cuenta' });
   }
 };
 
-export const getRankHistory = async (req: any, res: Response) => {
+export const getRankHistory = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
-    const userId = (req.params.id as string) || req.user.id;
+    const userId = (req.params.id as string) || authReq.user.id;
     const history = await prisma.rankHistory.findMany({
       where: { user_id: userId },
       orderBy: { fecha: 'desc' }

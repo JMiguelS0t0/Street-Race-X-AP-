@@ -1,10 +1,12 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import prisma from '../config/prisma';
+import { AuthenticatedRequest } from '../types';
 
-export const listNotifications = async (req: any, res: Response) => {
+export const listNotifications = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const notifications = await prisma.notification.findMany({
-      where: { user_id: req.user.id },
+      where: { user_id: authReq.user.id },
       orderBy: { created_at: 'desc' },
       take: 50
     });
@@ -14,13 +16,14 @@ export const listNotifications = async (req: any, res: Response) => {
   }
 };
 
-export const updateNotification = async (req: any, res: Response) => {
+export const updateNotification = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const id = req.params.id as string;
     const { leida } = req.body;
     
     const existingNotification = await prisma.notification.findFirst({
-      where: { id, user_id: req.user.id }
+      where: { id, user_id: authReq.user.id }
     });
 
     if (!existingNotification) {
@@ -37,13 +40,14 @@ export const updateNotification = async (req: any, res: Response) => {
   }
 };
 
-export const bulkUpdateNotifications = async (req: any, res: Response) => {
+export const bulkUpdateNotifications = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const { leida } = req.body;
     
     if (leida === true) {
       await prisma.notification.updateMany({
-        where: { user_id: req.user.id, leida: false },
+        where: { user_id: authReq.user.id, leida: false },
         data: { leida: true }
       });
       return res.json({ success: true, message: 'Todas las notificaciones marcadas como leídas' });
@@ -55,11 +59,12 @@ export const bulkUpdateNotifications = async (req: any, res: Response) => {
   }
 };
 
-export const deleteNotification = async (req: any, res: Response) => {
+export const deleteNotification = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const id = req.params.id as string;
     const deletedResult = await prisma.notification.deleteMany({
-      where: { id, user_id: req.user.id }
+      where: { id, user_id: authReq.user.id }
     });
 
     if (deletedResult.count === 0) {
@@ -70,3 +75,4 @@ export const deleteNotification = async (req: any, res: Response) => {
     res.status(500).json({ success: false, error: 'Error al eliminar notificación' });
   }
 };
+
