@@ -1,11 +1,13 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import prisma from '../config/prisma';
 import { sendSuccess, sendError, sendNotFound } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-export const listVehicles = async (req: any, res: Response) => {
+export const listVehicles = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const vehicles = await prisma.vehicle.findMany({
-      where: { user_id: req.user.id },
+      where: { user_id: authReq.user.id },
       orderBy: { created_at: 'desc' }
     });
     sendSuccess(res, vehicles);
@@ -14,11 +16,12 @@ export const listVehicles = async (req: any, res: Response) => {
   }
 };
 
-export const getVehicleDetail = async (req: any, res: Response) => {
+export const getVehicleDetail = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const id = req.params.id as string;
     const vehicle = await prisma.vehicle.findFirst({
-      where: { id, user_id: req.user.id }
+      where: { id, user_id: authReq.user.id }
     });
     if (!vehicle) return sendNotFound(res, 'Vehículo');
     sendSuccess(res, vehicle);
@@ -27,11 +30,12 @@ export const getVehicleDetail = async (req: any, res: Response) => {
   }
 };
 
-export const createVehicle = async (req: any, res: Response) => {
+export const createVehicle = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const { tipo_vehiculo, marca, modelo, año, color, placa, foto, modificaciones, activo } = req.body;
 
-    const existingVehicles = await prisma.vehicle.count({ where: { user_id: req.user.id } });
+    const existingVehicles = await prisma.vehicle.count({ where: { user_id: authReq.user.id } });
     if (existingVehicles >= 3) {
       return sendError(res, 'Has alcanzado el límite máximo de 3 vehículos', 400);
     }
@@ -44,12 +48,12 @@ export const createVehicle = async (req: any, res: Response) => {
       // Un piloto solo puede tener un vehículo activo a la vez para competir. Se usa una transacción para desactivar el anterior de forma atómica.
       const result = await prisma.$transaction(async (tx: any) => {
         await tx.vehicle.updateMany({
-          where: { user_id: req.user.id },
+          where: { user_id: authReq.user.id },
           data: { activo: false }
         });
         return tx.vehicle.create({
           data: {
-            user_id: req.user.id, tipo_vehiculo, marca, modelo, año, color, placa, foto, modificaciones, activo: true
+            user_id: authReq.user.id, tipo_vehiculo, marca, modelo, año, color, placa, foto, modificaciones, activo: true
           }
         });
       });
@@ -57,7 +61,7 @@ export const createVehicle = async (req: any, res: Response) => {
     } else {
       vehicle = await prisma.vehicle.create({
         data: {
-          user_id: req.user.id, tipo_vehiculo, marca, modelo, año, color, placa, foto, modificaciones, activo: false
+          user_id: authReq.user.id, tipo_vehiculo, marca, modelo, año, color, placa, foto, modificaciones, activo: false
         }
       });
     }
@@ -68,13 +72,14 @@ export const createVehicle = async (req: any, res: Response) => {
   }
 };
 
-export const updateVehicle = async (req: any, res: Response) => {
+export const updateVehicle = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const id = req.params.id as string;
     const { marca, modelo, año, color, placa, foto, modificaciones, activo } = req.body;
 
     const existingVehicle = await prisma.vehicle.findFirst({
-      where: { id, user_id: req.user.id }
+      where: { id, user_id: authReq.user.id }
     });
 
     if (!existingVehicle) {
@@ -84,7 +89,7 @@ export const updateVehicle = async (req: any, res: Response) => {
     if (activo === true) {
       await prisma.$transaction([
         prisma.vehicle.updateMany({
-          where: { user_id: req.user.id },
+          where: { user_id: authReq.user.id },
           data: { activo: false }
         }),
         prisma.vehicle.update({
@@ -113,7 +118,8 @@ export const updateVehicle = async (req: any, res: Response) => {
   }
 };
 
-export const deleteVehicle = async (req: any, res: Response) => {
+export const deleteVehicle = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const id = req.params.id as string;
 
@@ -131,7 +137,7 @@ export const deleteVehicle = async (req: any, res: Response) => {
       return sendError(res, 'No se puede eliminar un vehículo con retos activos o pendientes', 400);
     }
 
-    const deletedResult = await prisma.vehicle.deleteMany({ where: { id, user_id: req.user.id } });
+    const deletedResult = await prisma.vehicle.deleteMany({ where: { id, user_id: authReq.user.id } });
 
     if (deletedResult.count === 0) {
       return sendError(res, 'Vehículo no encontrado o no tienes permiso para eliminarlo', 404);

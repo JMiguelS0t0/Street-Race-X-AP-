@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest, AuthenticatedRequest } from '../types';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma';
@@ -93,10 +94,11 @@ export const logout = async (req: Request, res: Response) => {
   sendSuccess(res, undefined, 'Sesión cerrada correctamente');
 };
 
-export const getMe = async (req: any, res: Response) => {
+export const getMe = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
+      where: { id: authReq.user.id },
       include: { categoria: true }
     });
 

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../config/prisma';
 import { sendSuccess, sendError, sendNotFound } from '../utils/response';
+import { AuthRequest, AuthenticatedRequest } from '../types';
 
 const getNextRank = (currentRank: string): string => {
   const ranks = ['D', 'C', 'B', 'A', 'S'];
@@ -10,10 +11,11 @@ const getNextRank = (currentRank: string): string => {
   return ranks[currentIndex + 1];
 };
 
-export const createChallenge = async (req: any, res: Response) => {
+export const createChallenge = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const { retado_id, tipo_carrera, ubicacion_acordada, fecha_acordada, notas } = req.body;
-    const retador_id = req.user.id;
+    const retador_id = authReq.user.id;
 
     if (retador_id === retado_id) {
       return sendError(res, 'No puedes retarte a ti mismo', 400);
@@ -74,7 +76,8 @@ export const createChallenge = async (req: any, res: Response) => {
   }
 };
 
-export const completeChallenge = async (req: any, res: Response) => {
+export const completeChallenge = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const id = req.params.id as string;
     const { ganador_id } = req.body;
@@ -155,7 +158,8 @@ export const completeChallenge = async (req: any, res: Response) => {
   }
 };
 
-export const listChallenges = async (req: any, res: Response) => {
+export const listChallenges = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -168,7 +172,7 @@ export const listChallenges = async (req: any, res: Response) => {
     const tipoCarreraFilter = req.query.tipo_carrera as string;
 
     const whereClause: any = {
-      OR: [{ retador_id: req.user.id }, { retado_id: req.user.id }]
+      OR: [{ retador_id: authReq.user.id }, { retado_id: authReq.user.id }]
     };
 
     if (estadoFilter) {
@@ -199,7 +203,8 @@ export const listChallenges = async (req: any, res: Response) => {
   }
 };
 
-export const getChallengeDetail = async (req: any, res: Response) => {
+export const getChallengeDetail = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const id = req.params.id as string;
     const challenge = await prisma.challenge.findUnique({
@@ -218,7 +223,8 @@ export const getChallengeDetail = async (req: any, res: Response) => {
   }
 };
 
-export const updateChallenge = async (req: any, res: Response) => {
+export const updateChallenge = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const id = req.params.id as string;
     const { estado, ganador_id } = req.body;
@@ -237,7 +243,7 @@ export const updateChallenge = async (req: any, res: Response) => {
     });
     if (!challenge) return sendNotFound(res, 'Reto');
 
-    const userId = req.user.id;
+    const userId = authReq.user.id;
     const isRetador = challenge.retador_id === userId;
     const isRetado = challenge.retado_id === userId;
 
