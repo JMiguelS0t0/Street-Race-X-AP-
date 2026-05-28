@@ -91,3 +91,51 @@ export const getGlobalHistory = async (): Promise<GlobalHistoryResponse> => {
   const response = await api.get<GlobalHistoryResponse>('/challenges/history');
   return response.data;
 };
+
+export interface ChallengeAdmin extends Challenge {
+  retador: { id: string; username: string; rango: string };
+  retado: { id: string; username: string; rango: string };
+  vehiculo_retador: { id: string; marca: string; modelo: string };
+  vehiculo_retado: { id: string; marca: string; modelo: string };
+}
+
+export interface ListChallengesAdminResponse {
+  success: boolean;
+  data: {
+    challenges: ChallengeAdmin[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  };
+  error?: string;
+}
+
+export interface AdminDeleteChallengeResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export const adminListAllChallenges = async (
+  page: number = 1,
+  limit: number = 10,
+  search?: string
+): Promise<ListChallengesAdminResponse> => {
+  const queryParams = new URLSearchParams();
+  queryParams.append('page', page.toString());
+  queryParams.append('limit', limit.toString());
+  if (search) queryParams.append('search', search);
+
+  const response = await api.get<ListChallengesAdminResponse>(
+    `/challenges/admin/all?${queryParams.toString()}`
+  );
+  return response.data;
+};
+
+export const adminDeleteChallenge = async (id: string): Promise<AdminDeleteChallengeResponse> => {
+  const response = await api.delete<AdminDeleteChallengeResponse>(`/challenges/admin/${id}`);
+  return response.data;
+};

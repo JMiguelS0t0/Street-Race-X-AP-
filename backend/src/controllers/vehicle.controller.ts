@@ -7,7 +7,10 @@ import { asyncHandler } from '../utils/asyncHandler';
 export const listVehicles = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const vehicles = await prisma.vehicle.findMany({
-    where: { user_id: authReq.user.id },
+    where: {
+      user_id: authReq.user.id,
+      tipo_vehiculo: { not: 'DELETED' }
+    },
     orderBy: { created_at: 'desc' }
   });
   sendSuccess(res, vehicles);
@@ -17,7 +20,11 @@ export const getVehicleDetail = asyncHandler(async (req: Request, res: Response)
   const authReq = req as AuthenticatedRequest;
   const id = req.params.id as string;
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id, user_id: authReq.user.id }
+    where: {
+      id,
+      user_id: authReq.user.id,
+      tipo_vehiculo: { not: 'DELETED' }
+    }
   });
   if (!vehicle) return sendNotFound(res, 'Vehículo');
   sendSuccess(res, vehicle);
@@ -27,7 +34,12 @@ export const createVehicle = asyncHandler(async (req: Request, res: Response) =>
   const authReq = req as AuthenticatedRequest;
   const { tipo_vehiculo, marca, modelo, año, color, placa, foto, modificaciones, activo } = req.body;
 
-  const existingVehicles = await prisma.vehicle.count({ where: { user_id: authReq.user.id } });
+  const existingVehicles = await prisma.vehicle.count({
+    where: {
+      user_id: authReq.user.id,
+      tipo_vehiculo: { not: 'DELETED' }
+    }
+  });
   if (existingVehicles >= 3) {
     return sendError(res, 'Has alcanzado el límite máximo de 3 vehículos', 400);
   }
@@ -121,9 +133,15 @@ export const deleteVehicle = asyncHandler(async (req: Request, res: Response) =>
     return sendError(res, 'No se puede eliminar un vehículo con retos activos o pendientes', 400);
   }
 
-  const deletedResult = await prisma.vehicle.deleteMany({ where: { id, user_id: authReq.user.id } });
+  const updatedResult = await prisma.vehicle.updateMany({
+    where: { id, user_id: authReq.user.id },
+    data: {
+      activo: false,
+      tipo_vehiculo: 'DELETED'
+    }
+  });
 
-  if (deletedResult.count === 0) {
+  if (updatedResult.count === 0) {
     return sendError(res, 'Vehículo no encontrado o no tienes permiso para eliminarlo', 404);
   }
 

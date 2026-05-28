@@ -36,6 +36,7 @@ export const getPublicProfile = asyncHandler(async (req: Request, res: Response)
       victorias: true,
       derrotas: true,
       retos_consecutivos: true,
+      estado: true,
       categoria: { select: { nombre: true } },
       vehicles: {
         where: { activo: true },
@@ -44,11 +45,13 @@ export const getPublicProfile = asyncHandler(async (req: Request, res: Response)
     }
   });
 
-  if (!user) {
+  if (!user || user.estado === 'inactivo') {
     return sendNotFound(res, 'Piloto');
   }
 
-  sendSuccess(res, user);
+  const { estado, ...profileData } = user;
+
+  sendSuccess(res, profileData);
 });
 
 export const discoverPilots = asyncHandler(async (req: Request, res: Response) => {
@@ -130,8 +133,11 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response) =>
 
 export const deleteMe = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
-  await prisma.user.delete({ where: { id: authReq.user.id } });
-  sendSuccess(res, undefined, 'Cuenta eliminada permanentemente');
+  await prisma.user.update({
+    where: { id: authReq.user.id },
+    data: { estado: 'inactivo' }
+  });
+  sendSuccess(res, undefined, 'Cuenta desactivada');
 });
 
 export const getRankHistory = asyncHandler(async (req: Request, res: Response) => {
@@ -190,6 +196,9 @@ export const adminUpdateUser = asyncHandler(async (req: Request, res: Response) 
 
 export const adminDeleteUser = asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string;
-  await prisma.user.delete({ where: { id } });
-  sendSuccess(res, undefined, 'Usuario eliminado por administrador');
+  await prisma.user.update({
+    where: { id },
+    data: { estado: 'inactivo' }
+  });
+  sendSuccess(res, undefined, 'Usuario desactivado por administrador');
 });

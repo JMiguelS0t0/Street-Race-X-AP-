@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { listVehicles, createVehicle, updateVehicle, deleteVehicle, getVehicleDetail } from '../controllers/vehicle.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { authMiddleware, adminMiddleware } from '../middlewares/auth.middleware';
+import { listAllVehicles, deleteVehicle as adminDeleteVehicle } from '../controllers/admin.controller';
 
 const router = Router();
 
 router.use(authMiddleware);
+
+router.get('/admin/all', adminMiddleware, listAllVehicles);
+router.delete('/admin/:id', adminMiddleware, adminDeleteVehicle);
 
 /**
  * @swagger

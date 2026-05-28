@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createChallenge, listChallenges, updateChallenge, getGlobalHistory, getChallengeDetail } from '../controllers/challenge.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { authMiddleware, adminMiddleware } from '../middlewares/auth.middleware';
+import { listAllChallenges, deleteChallenge } from '../controllers/admin.controller';
 
 const router = Router();
 
@@ -35,6 +36,9 @@ const router = Router();
 router.get('/history', getGlobalHistory);
 
 router.use(authMiddleware);
+
+router.get('/admin/all', adminMiddleware, listAllChallenges);
+router.delete('/admin/:id', adminMiddleware, deleteChallenge);
 
 /**
  * @swagger

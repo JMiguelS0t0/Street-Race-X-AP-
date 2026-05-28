@@ -68,8 +68,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     return sendError(res, 'Credenciales inválidas', 401);
   }
 
-  if (user.estado === 'suspendido') {
-    return sendError(res, 'Cuenta suspendida', 401);
+  if (user.estado === 'suspendido' || user.estado === 'inactivo') {
+    return sendError(res, 'Cuenta suspendida o inactiva', 401);
   }
 
   const token = generateToken(user);
@@ -119,8 +119,8 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
 
     const user = await prisma.user.findUnique({ where: { id: decoded.id } });
     
-    if (!user || user.estado === 'suspendido') {
-      return sendError(res, 'Usuario no existe o está suspendido', 401);
+    if (!user || user.estado === 'suspendido' || user.estado === 'inactivo') {
+      return sendError(res, 'Usuario no existe o está suspendido/inactivo', 401);
     }
 
     const newToken = generateToken(user);

@@ -164,6 +164,15 @@ export default function Chat({ currentUser, activeRoomId, setActiveRoomId }: Cha
     return null;
   };
 
+  const getRoomDisplayName = (room: ChatRoom | undefined | null) => {
+    if (!room) return 'SYSTEM';
+    if (room.is_grupo) {
+      return room.nombre || 'GROUP COMMS CHANNEL';
+    }
+    const opp = getOpponent(room);
+    return opp?.username || 'DIRECT LINK';
+  };
+
   const roomOpponents = new Set(
     rooms.map(room => {
       const opp = getOpponent(room);
@@ -173,10 +182,9 @@ export default function Chat({ currentUser, activeRoomId, setActiveRoomId }: Cha
 
   const filteredRooms = searchQuery.trim() === ''
     ? rooms
-    : rooms.filter(room => {
-        const opp = getOpponent(room);
-        return opp?.username.toLowerCase().includes(searchQuery.toLowerCase());
-      });
+    : rooms.filter(room => 
+        getRoomDisplayName(room).toLowerCase().includes(searchQuery.toLowerCase())
+      );
 
   const filteredAvailable = searchQuery.trim() === ''
     ? []
@@ -244,22 +252,33 @@ export default function Chat({ currentUser, activeRoomId, setActiveRoomId }: Cha
                             : 'bg-[#151515] border-outline-variant/40 hover:border-on-surface-variant text-on-surface-variant'
                         }`}
                       >
-                        <img
-                          src={opp?.foto_perfil || DEFAULT_AVATAR}
-                          alt={opp?.username}
-                          className="w-10 h-10 rounded-full border border-outline object-cover bg-[#20201f]"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR;
-                          }}
-                        />
+                        {room.is_grupo ? (
+                          <div className="w-10 h-10 rounded-full border border-outline bg-[#20201f] flex items-center justify-center text-secondary-container shrink-0">
+                            <span className="material-symbols-outlined text-[20px]">groups</span>
+                          </div>
+                        ) : (
+                          <img
+                            src={opp?.foto_perfil || DEFAULT_AVATAR}
+                            alt={opp?.username || 'Pilot'}
+                            className="w-10 h-10 rounded-full border border-outline object-cover bg-[#20201f] shrink-0"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR;
+                            }}
+                          />
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-baseline">
-                            <span className="font-bold text-[13px] truncate uppercase">
-                              {opp?.username || 'SYSTEM'}
+                            <span className="font-bold text-[13px] truncate uppercase text-on-surface">
+                              {getRoomDisplayName(room)}
                             </span>
-                            {opp?.rango && (
+                            {!room.is_grupo && opp?.rango && (
                               <span className="text-[9px] border border-tertiary/40 bg-tertiary/10 text-tertiary-fixed px-1 font-bold">
                                 {opp.rango}
+                              </span>
+                            )}
+                            {room.is_grupo && (
+                              <span className="text-[9px] border border-secondary-container/40 bg-secondary-container/10 text-secondary-container px-1 font-bold">
+                                GROUP
                               </span>
                             )}
                           </div>

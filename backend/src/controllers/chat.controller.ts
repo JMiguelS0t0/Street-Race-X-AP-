@@ -122,7 +122,7 @@ export const createRoom = asyncHandler(async (req: Request, res: Response) => {
       return sendError(res, 'Uno o más de los usuarios añadidos no existen', 400);
     }
 
-    const room = await prisma.$transaction(async (tx) => {
+    const room = await prisma.$transaction(async (tx: any) => {
       const chatRoom = await tx.chatRoom.create({
         data: {
           nombre,
@@ -173,8 +173,8 @@ export const createRoom = asyncHandler(async (req: Request, res: Response) => {
       }
     });
 
-    const existingPrivateRoom = existingRooms.find(r => 
-      r.members.some(m => m.user_id === recipientId)
+    const existingPrivateRoom = existingRooms.find((r: any) => 
+      r.members.some((m: any) => m.user_id === recipientId)
     );
 
     if (existingPrivateRoom) {
@@ -182,7 +182,7 @@ export const createRoom = asyncHandler(async (req: Request, res: Response) => {
     }
 
     // Create a new private room
-    const room = await prisma.$transaction(async (tx) => {
+    const room = await prisma.$transaction(async (tx: any) => {
       const chatRoom = await tx.chatRoom.create({
         data: {
           is_grupo: false

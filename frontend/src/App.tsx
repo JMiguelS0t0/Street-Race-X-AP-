@@ -6,10 +6,11 @@ import Retos from './views/Retos/Retos';
 import Vehiculos from './views/Vehiculos/Vehiculos';
 import Notificaciones from './views/Notificaciones/Notificaciones';
 import Chat from './views/Chat/Chat';
+import Admin from './views/Admin/Admin';
 import { getMe } from './services/auth.service';
 import type { User } from './services/auth.service';
 
-type ActiveView = 'auth' | 'dashboard' | 'perfil' | 'retos' | 'vehiculos' | 'notificaciones' | 'chat';
+type ActiveView = 'auth' | 'dashboard' | 'perfil' | 'retos' | 'vehiculos' | 'notificaciones' | 'chat' | 'admin';
 
 const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuB-9ZyreVDB-dB884WbELyLQZvabGRBGI3bG4fD758MrfOvj6_q8Yl_WfFHMxNUkuYI920kA_3ipQbK4D3En3E67hHLcl4dbxz5Q9qVl6e8PzSA5Btj-PsAH7QLPcqNcty3jEWi0RpythiiVeCPQ4KjaSgEyw0aMdDB54NQsB60x4ooYNJXN2KCe51lzQT_tJDuIwsJIJgc79VjB372RjmI1GjwDmU-Gq_YdxiLBZebRinJjCgEFI4MxbWmWe1LSLz9ZmuE7HQYqlRs';
 
@@ -123,6 +124,8 @@ export default function App() {
             setActiveRoomId={setActiveChatRoomId} 
           />
         ) : null;
+      case 'admin':
+        return currentUser?.rol === 'administrador' ? <Admin /> : <Dashboard onSwitchView={handleNavClick} onSwitchViewWithRoom={handleSwitchViewWithRoom} />;
       default:
         return <Dashboard onSwitchView={handleNavClick} onSwitchViewWithRoom={handleSwitchViewWithRoom} />;
     }
@@ -134,6 +137,7 @@ export default function App() {
     { id: 'notificaciones', label: 'Live Alerts', icon: 'bolt' },
     { id: 'vehiculos', label: 'Garage', icon: 'directions_car' },
     { id: 'retos', label: 'Leaderboard', icon: 'leaderboard' },
+    ...(currentUser?.rol === 'administrador' ? [{ id: 'admin', label: 'Admin Panel', icon: 'admin_panel_settings' }] : []),
     { id: 'perfil', label: 'Settings', icon: 'settings' },
   ];
 
@@ -277,6 +281,7 @@ export default function App() {
           { id: 'chat', label: 'Chat', icon: 'chat' },
           { id: 'retos', label: 'Race', icon: 'flag' },
           { id: 'vehiculos', label: 'Garage', icon: 'minor_crash' },
+          ...(currentUser?.rol === 'administrador' ? [{ id: 'admin', label: 'Admin', icon: 'admin_panel_settings' }] : []),
           { id: 'perfil', label: 'Profile', icon: 'person' },
         ].map((item) => {
           const isActive = activeView === item.id;
