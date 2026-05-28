@@ -10,10 +10,13 @@ export default function LocationDrawMap({ onPathChange }: LocationDrawMapProps) 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const [coordinates, setCoordinates] = useState<[number, number][]>([]);
+  const [history, setHistory] = useState<[number, number][][]>([]);
+  const [routing, setRouting] = useState(false);
 
   const tempCoords = useRef<[number, number][]>([]);
   const markersRef = useRef<L.Marker[]>([]);
   const polylineRef = useRef<L.Polyline | null>(null);
+  const routingRef = useRef(false);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -29,12 +32,52 @@ export default function LocationDrawMap({ onPathChange }: LocationDrawMapProps) 
         ]
       });
 
-      mapInstance.current.on('click', (e: L.LeafletMouseEvent) => {
+      mapInstance.current.on('click', async (e: L.LeafletMouseEvent) => {
+        if (routingRef.current) return;
         const newCoord: [number, number] = [e.latlng.lat, e.latlng.lng];
-        const updated = [...tempCoords.current, newCoord];
-        tempCoords.current = updated;
-        setCoordinates(updated);
-        onPathChange(updated);
+        if (tempCoords.current.length === 0) {
+          const updated = [newCoord];
+          setHistory(prev => [...prev, tempCoords.current]);
+          tempCoords.current = updated;
+          setCoordinates(updated);
+          onPathChange(updated);
+        } else {
+          const lastPoint = tempCoords.current[tempCoords.current.length - 1];
+          routingRef.current = true;
+          setRouting(true);
+          try {
+            const response = await fetch(
+              `https://router.project-osrm.org/route/v1/driving/${lastPoint[1]},${lastPoint[0]};${newCoord[1]},${newCoord[0]}?overview=full&geometries=geojson`
+            );
+            const data = await response.json();
+            if (data.code === 'Ok' && data.routes && data.routes[0]) {
+              const routeCoords = data.routes[0].geometry.coordinates.map(
+                (c: [number, number]) => [c[1], c[0]] as [number, number]
+              );
+              const finalRouteCoords = routeCoords.slice(1);
+              const updated = [...tempCoords.current, ...finalRouteCoords];
+              setHistory(prev => [...prev, tempCoords.current]);
+              tempCoords.current = updated;
+              setCoordinates(updated);
+              onPathChange(updated);
+            } else {
+              const updated = [...tempCoords.current, newCoord];
+              setHistory(prev => [...prev, tempCoords.current]);
+              tempCoords.current = updated;
+              setCoordinates(updated);
+              onPathChange(updated);
+            }
+          } catch (error) {
+            const updated = [...tempCoords.current, newCoord];
+            setHistory(prev => [...prev, tempCoords.current]);
+            tempCoords.current = updated;
+            setCoordinates(updated);
+            onPathChange(updated);
+          } finally {
+            routingRef.current = false;
+            setRouting(false);
+          }
+        }
       });
     }
   }, [onPathChange]);
@@ -80,17 +123,19 @@ export default function LocationDrawMap({ onPathChange }: LocationDrawMapProps) 
   }, [coordinates]);
 
   const handleUndo = () => {
-    if (coordinates.length === 0) return;
-    const updated = coordinates.slice(0, -1);
-    tempCoords.current = updated;
-    setCoordinates(updated);
-    onPathChange(updated);
+    if (history.length === 0) return;
+    const previousPath = history[history.length - 1];
+    setHistory(prev => prev.slice(0, -1));
+    tempCoords.current = previousPath;
+    setCoordinates(previousPath);
+    onPathChange(previousPath);
   };
 
   const handleClear = () => {
     tempCoords.current = [];
     setCoordinates([]);
     onPathChange([]);
+    setHistory([]);
   };
 
   useEffect(() => {
@@ -106,6 +151,12 @@ export default function LocationDrawMap({ onPathChange }: LocationDrawMapProps) 
     <div className="flex flex-col gap-2">
       <div className="w-full border border-outline-variant/40 bg-surface-container relative">
         <div ref={mapRef} className="w-full h-48" style={{ minHeight: '200px' }} />
+        {routing && (
+          <div className="absolute inset-0 bg-black/60 z-[1000] flex items-center justify-center font-mono text-[11px] text-secondary-container uppercase tracking-wider">
+            <span className="material-symbols-outlined text-[16px] animate-spin mr-2">progress_activity</span>
+            Trazando ruta por carreteras...
+          </div>
+        )}
       </div>
       <div className="flex justify-between items-center font-mono text-[10px]">
         <span className="text-on-surface-variant uppercase">
@@ -115,7 +166,7 @@ export default function LocationDrawMap({ onPathChange }: LocationDrawMapProps) 
           <button
             type="button"
             onClick={handleUndo}
-            disabled={coordinates.length === 0}
+            disabled={history.length === 0}
             className="px-3 py-1 bg-surface border border-outline-variant text-on-surface disabled:opacity-40 hover:bg-surface-variant cursor-pointer"
           >
             DESHACER

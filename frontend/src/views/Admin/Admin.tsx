@@ -8,6 +8,7 @@ import type { VehicleAdmin } from '../../services/vehicle.service';
 import { getLocations, createLocation, deleteLocation } from '../../services/location.service';
 import type { RaceLocation } from '../../services/location.service';
 import LocationDrawMap from '../../components/LocationDrawMap';
+import CustomDateTimePicker from '../../components/CustomDateTimePicker';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<'pilotos' | 'retos' | 'garaje' | 'localizaciones'>('pilotos');
@@ -54,6 +55,11 @@ export default function Admin() {
 
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   const loadUsers = async (page: number) => {
     setUsersLoading(true);
@@ -208,23 +214,27 @@ export default function Admin() {
     }
   };
 
-  const handleDeleteLocationClick = async (id: string, nombre: string) => {
-    if (!window.confirm(`¿ELIMINAR LA LOCALIZACIÓN "${nombre.toUpperCase()}"?\nESTO PODRÍA DESASOCIAR RETOS EN CURSO.`)) {
-      return;
-    }
-    setError(null);
-    setSuccessMessage(null);
-    try {
-      const res = await deleteLocation(id);
-      if (res.success) {
-        setSuccessMessage(`LOCALIZACIÓN "${nombre.toUpperCase()}" ELIMINADA`);
-        loadLocationsList();
-      } else {
-        setError(res.error || 'Error al eliminar localización');
+  const handleDeleteLocationClick = (id: string, nombre: string) => {
+    setConfirmModal({
+      title: 'ELIMINAR LOCALIZACIÓN',
+      message: `¿ELIMINAR LA LOCALIZACIÓN "${nombre.toUpperCase()}"?\nESTO PODRÍA DESASOCIAR RETOS EN CURSO.`,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        setError(null);
+        setSuccessMessage(null);
+        try {
+          const res = await deleteLocation(id);
+          if (res.success) {
+            setSuccessMessage(`LOCALIZACIÓN "${nombre.toUpperCase()}" ELIMINADA`);
+            loadLocationsList();
+          } else {
+            setError(res.error || 'Error al eliminar localización');
+          }
+        } catch (err: any) {
+          setError(err.response?.data?.error || 'Failed to delete location');
+        }
       }
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete location');
-    }
+    });
   };
 
   useEffect(() => {
@@ -274,65 +284,93 @@ export default function Admin() {
     }
   };
 
-  const handleDeleteUserClick = async (id: string, username: string) => {
-    if (!window.confirm(`CONFIRM HARD DELETION FOR PILOT: ${username.toUpperCase()}?\nTHIS WILL PURGE ALL RETOS AND CANNOT BE UNDONE.`)) {
-      return;
-    }
+  const handleDeleteUserClick = (id: string, username: string) => {
+    setConfirmModal({
+      title: 'TERMINAR PILOTO',
+      message: `CONFIRM HARD DELETION FOR PILOT: ${username.toUpperCase()}?\nTHIS WILL PURGE ALL RETOS AND CANNOT BE UNDONE.`,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        setError(null);
+        setSuccessMessage(null);
+        try {
+          const res = await adminDeleteUser(id);
+          if (res.success) {
+            setSuccessMessage(`PILOT ${username.toUpperCase()} DELETED AND RECORD PURGED`);
+            const nextPage = users.length === 1 && userPage > 1 ? userPage - 1 : userPage;
+            loadUsers(nextPage);
+          } else {
+            setError(res.error || 'Error deleting user');
+          }
+        } catch (err: any) {
+          setError(err.response?.data?.error || 'Failed user termination command');
+        }
+      }
+    });
+  };
+
+  const handleActivateUserClick = async (id: string, username: string) => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const res = await adminDeleteUser(id);
+      const res = await adminUpdateUser(id, { estado: 'activo' });
       if (res.success) {
-        setSuccessMessage(`PILOT ${username.toUpperCase()} DELETED AND RECORD PURGED`);
-        const nextPage = users.length === 1 && userPage > 1 ? userPage - 1 : userPage;
-        loadUsers(nextPage);
+        setSuccessMessage(`PILOT ${username.toUpperCase()} ACTIVATED SUCCESSFULLY`);
+        loadUsers(userPage);
       } else {
-        setError(res.error || 'Error deleting user');
+        setError(res.error || 'Error activating user');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed user termination command');
+      setError(err.response?.data?.error || 'Failed user activation command');
     }
   };
 
-  const handleDeleteChallengeClick = async (id: string) => {
-    if (!window.confirm('ABORT & DELETE THIS CHALLENGE RECORD PERMANENTLY?')) {
-      return;
-    }
-    setError(null);
-    setSuccessMessage(null);
-    try {
-      const res = await adminDeleteChallenge(id);
-      if (res.success) {
-        setSuccessMessage('CHALLENGE RECORD DELETED & ANNULLMENT LOGGED');
-        const nextPage = challenges.length === 1 && challengePage > 1 ? challengePage - 1 : challengePage;
-        loadChallenges(nextPage, challengeSearch);
-      } else {
-        setError(res.error || 'Error deleting challenge');
+  const handleDeleteChallengeClick = (id: string) => {
+    setConfirmModal({
+      title: 'ELIMINAR RETO',
+      message: 'ABORT & DELETE THIS CHALLENGE RECORD PERMANENTLY?',
+      onConfirm: async () => {
+        setConfirmModal(null);
+        setError(null);
+        setSuccessMessage(null);
+        try {
+          const res = await adminDeleteChallenge(id);
+          if (res.success) {
+            setSuccessMessage('CHALLENGE RECORD DELETED & ANNULLMENT LOGGED');
+            const nextPage = challenges.length === 1 && challengePage > 1 ? challengePage - 1 : challengePage;
+            loadChallenges(nextPage, challengeSearch);
+          } else {
+            setError(res.error || 'Error deleting challenge');
+          }
+        } catch (err: any) {
+          setError(err.response?.data?.error || 'Failed challenge deletion command');
+        }
       }
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed challenge deletion command');
-    }
+    });
   };
 
-  const handleDeleteVehicleClick = async (id: string, brand: string | null, model: string | null, owner: string) => {
+  const handleDeleteVehicleClick = (id: string, brand: string | null, model: string | null, owner: string) => {
     const carName = `${brand || ''} ${model || ''}`.trim() || 'VEHICLE';
-    if (!window.confirm(`DISMANTLE & SCRAP ${carName.toUpperCase()} FROM ${owner.toUpperCase()}'S GARAGE?\nTHIS WILL ALSO REMOVE ALL CHALLENGES FEATURING THIS VEHICLE.`)) {
-      return;
-    }
-    setError(null);
-    setSuccessMessage(null);
-    try {
-      const res = await adminDeleteVehicle(id);
-      if (res.success) {
-        setSuccessMessage('VEHICLE DISMANTLED & SCRAPPED FROM GLOBAL REGISTRY');
-        const nextPage = vehicles.length === 1 && vehiclePage > 1 ? vehiclePage - 1 : vehiclePage;
-        loadVehicles(nextPage, vehicleSearch);
-      } else {
-        setError(res.error || 'Error deleting vehicle');
+    setConfirmModal({
+      title: 'DESMANTELAR VEHÍCULO',
+      message: `DISMANTLE & SCRAP ${carName.toUpperCase()} FROM ${owner.toUpperCase()}'S GARAGE?\nTHIS WILL ALSO REMOVE ALL CHALLENGES FEATURING THIS VEHICLE.`,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        setError(null);
+        setSuccessMessage(null);
+        try {
+          const res = await adminDeleteVehicle(id);
+          if (res.success) {
+            setSuccessMessage('VEHICLE DISMANTLED & SCRAPPED FROM GLOBAL REGISTRY');
+            const nextPage = vehicles.length === 1 && vehiclePage > 1 ? vehiclePage - 1 : vehiclePage;
+            loadVehicles(nextPage, vehicleSearch);
+          } else {
+            setError(res.error || 'Error deleting vehicle');
+          }
+        } catch (err: any) {
+          setError(err.response?.data?.error || 'Failed vehicle scrap command');
+        }
       }
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed vehicle scrap command');
-    }
+    });
   };
 
   const handleChallengeSearchSubmit = (e: React.FormEvent) => {
@@ -502,12 +540,21 @@ export default function Admin() {
                             >
                               <span className="skew-x-[12deg] block">EDIT</span>
                             </button>
-                            <button
-                              onClick={() => handleDeleteUserClick(user.id, user.username)}
-                              className="bg-transparent border border-error hover:bg-error/10 text-error font-bold px-3 py-1 text-[10px] skew-x-[-12deg] cursor-pointer"
-                            >
-                              <span className="skew-x-[12deg] block">TERMINATE</span>
-                            </button>
+                            {user.estado === 'activo' ? (
+                              <button
+                                onClick={() => handleDeleteUserClick(user.id, user.username)}
+                                className="bg-transparent border border-error hover:bg-error/10 text-error font-bold px-3 py-1 text-[10px] skew-x-[-12deg] cursor-pointer"
+                              >
+                                <span className="skew-x-[12deg] block">TERMINATE</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleActivateUserClick(user.id, user.username)}
+                                className="bg-transparent border border-tertiary hover:bg-tertiary/10 text-tertiary font-bold px-3 py-1 text-[10px] skew-x-[-12deg] cursor-pointer"
+                              >
+                                <span className="skew-x-[12deg] block">ACTIVATE</span>
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -1030,12 +1077,10 @@ export default function Admin() {
                 <label className="text-[9px] font-bold text-on-surface-variant uppercase">
                   FECHA Y HORA ACORDADA
                 </label>
-                <input
-                  type="datetime-local"
+                <CustomDateTimePicker
                   value={newFecha}
-                  onChange={(e) => setNewFecha(e.target.value)}
+                  onChange={setNewFecha}
                   required
-                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
                 />
               </div>
 
@@ -1151,6 +1196,43 @@ export default function Admin() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+          <div className="bg-[#20201f] border border-outline-variant p-6 relative max-w-md w-full header-notch shadow-[0_0_24px_rgba(255,87,25,0.15)] font-mono flex flex-col gap-5">
+            <div className="absolute top-0 left-0 w-2 h-full bg-[#ff5719]" />
+            <div className="flex justify-between items-start border-b border-outline-variant/30 pb-3">
+              <h3 className="text-[16px] italic font-black text-primary-container uppercase">
+                {confirmModal.title}
+              </h3>
+              <button 
+                onClick={() => setConfirmModal(null)}
+                className="text-on-surface-variant hover:text-on-surface cursor-pointer select-none"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <p className="text-[12px] text-on-surface uppercase tracking-wide whitespace-pre-line leading-relaxed">
+              {confirmModal.message}
+            </p>
+            <div className="flex gap-3 justify-end border-t border-outline-variant/20 pt-4 mt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="bg-transparent border border-outline-variant hover:bg-surface-variant text-on-surface font-bold px-5 py-2.5 text-[11px] skew-x-[-12deg] cursor-pointer"
+              >
+                <span className="skew-x-[12deg] block">CANCELAR</span>
+              </button>
+              <button
+                type="button"
+                onClick={confirmModal.onConfirm}
+                className="bg-primary-container text-on-primary-container font-bold px-6 py-2.5 text-[11px] skew-x-[-12deg] hover:bg-primary cursor-pointer select-none"
+              >
+                <span className="skew-x-[12deg] block">CONFIRMAR</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

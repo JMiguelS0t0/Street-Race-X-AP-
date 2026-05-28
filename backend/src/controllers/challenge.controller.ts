@@ -159,10 +159,8 @@ export const listChallenges = asyncHandler(async (req: Request, res: Response) =
         { retador_id: null },
         { retado_id: null }
       ],
-      NOT: [
-        { retador_id: authReq.user.id },
-        { retado_id: authReq.user.id }
-      ]
+      retador_id: { not: authReq.user.id },
+      retado_id: { not: authReq.user.id }
     };
   } else {
     whereClause = {
