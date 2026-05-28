@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { discoverPilots } from '../../services/discover.service';
 import { createChallenge } from '../../services/challenge.service';
+import { createRoom } from '../../services/chat.service';
 import type { Pilot } from '../../services/discover.service';
 
 interface DashboardProps {
-  onSwitchView?: (view: 'auth' | 'dashboard' | 'perfil' | 'retos' | 'vehiculos' | 'notificaciones') => void;
+  onSwitchView?: (view: 'auth' | 'dashboard' | 'perfil' | 'retos' | 'vehiculos' | 'notificaciones' | 'chat') => void;
+  onSwitchViewWithRoom?: (view: 'auth' | 'dashboard' | 'perfil' | 'retos' | 'vehiculos' | 'notificaciones' | 'chat', roomId: string | null) => void;
 }
 
 const DEFAULT_BG_IMAGES = [
@@ -19,9 +21,20 @@ const DEFAULT_PILOT_AVATARS = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuA0txy4dB6b9FTsxHZ8WtqDDVvR5G6cryW0tt5lnPZ9eQPEYWMDQ9fqWcIk5Nop2TMv7DRf299f8kKJVhr17KH37JxK1YQ76ViYyrss4zgdwSO9cZ5MXKLr4XFc_7Yu-tav1ip7iR59En8gsflt4w3w8VLH-PDkH5NP55rTECZCE0U-Ir7bMrGPs3Q74cTjKuoNUfFUr2hXPdRegh9xr0-FK9jZPryrFTyxVmX24n9jRiUZLbyf9omxm8fn2W-BDEu-wMMe8GgoMtl4'
 ];
 
-export default function Dashboard({ onSwitchView }: DashboardProps) {
+export default function Dashboard({ onSwitchView, onSwitchViewWithRoom }: DashboardProps) {
   const [pilots, setPilots] = useState<Pilot[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const handleStartChat = async (recipientId: string) => {
+    try {
+      const res = await createRoom({ is_grupo: false, recipientId });
+      if (res.success && res.data) {
+        onSwitchViewWithRoom?.('chat', res.data.id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const [error, setError] = useState<string | null>(null);
   const [noActiveVehicle, setNoActiveVehicle] = useState(false);
 
@@ -339,17 +352,25 @@ export default function Dashboard({ onSwitchView }: DashboardProps) {
                       </div>
                     </div>
 
-                    <button 
-                      onClick={() => {
-                        setSelectedRival(pilot);
-                        setShowRetoModal(true);
-                      }}
-                      className="w-full bg-[#ff5719] hover:bg-[#ff5719]/80 text-[#521300] py-3 transition-colors flex justify-center items-center gap-2 group/btn cursor-pointer font-bold"
-                      style={{ fontFamily: '"Anybody", sans-serif' }}
-                    >
-                      <span className="skew-x-[-12deg] group-hover/btn:skew-x-[-18deg] transition-transform text-[16px] italic">RETO</span>
-                      <span className="material-symbols-outlined text-[18px]">keyboard_double_arrow_right</span>
-                    </button>
+                    <div className="flex w-full mt-auto">
+                      <button 
+                        onClick={() => {
+                          setSelectedRival(pilot);
+                          setShowRetoModal(true);
+                        }}
+                        className="flex-1 bg-[#ff5719] hover:bg-[#ff5719]/80 text-[#521300] py-3 transition-colors flex justify-center items-center gap-2 group/btn cursor-pointer font-bold"
+                        style={{ fontFamily: '"Anybody", sans-serif' }}
+                      >
+                        <span className="skew-x-[-12deg] group-hover/btn:skew-x-[-18deg] transition-transform text-[16px] italic">RETO</span>
+                        <span className="material-symbols-outlined text-[18px]">keyboard_double_arrow_right</span>
+                      </button>
+                      <button 
+                        onClick={() => handleStartChat(pilot.id)}
+                        className="w-16 bg-secondary-container hover:bg-secondary-fixed text-on-secondary py-3 border-l border-outline-variant/30 flex justify-center items-center cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">chat</span>
+                      </button>
+                    </div>
                   </article>
                 );
               })}

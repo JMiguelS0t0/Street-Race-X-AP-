@@ -5,10 +5,11 @@ import Perfil from './views/Perfil/Perfil';
 import Retos from './views/Retos/Retos';
 import Vehiculos from './views/Vehiculos/Vehiculos';
 import Notificaciones from './views/Notificaciones/Notificaciones';
+import Chat from './views/Chat/Chat';
 import { getMe } from './services/auth.service';
 import type { User } from './services/auth.service';
 
-type ActiveView = 'auth' | 'dashboard' | 'perfil' | 'retos' | 'vehiculos' | 'notificaciones';
+type ActiveView = 'auth' | 'dashboard' | 'perfil' | 'retos' | 'vehiculos' | 'notificaciones' | 'chat';
 
 const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuB-9ZyreVDB-dB884WbELyLQZvabGRBGI3bG4fD758MrfOvj6_q8Yl_WfFHMxNUkuYI920kA_3ipQbK4D3En3E67hHLcl4dbxz5Q9qVl6e8PzSA5Btj-PsAH7QLPcqNcty3jEWi0RpythiiVeCPQ4KjaSgEyw0aMdDB54NQsB60x4ooYNJXN2KCe51lzQT_tJDuIwsJIJgc79VjB372RjmI1GjwDmU-Gq_YdxiLBZebRinJjCgEFI4MxbWmWe1LSLz9ZmuE7HQYqlRs';
 
@@ -17,6 +18,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(window.innerWidth >= 768);
+  const [activeChatRoomId, setActiveChatRoomId] = useState<string | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -76,6 +78,14 @@ export default function App() {
     }
   };
 
+  const handleSwitchViewWithRoom = (view: ActiveView, roomId: string | null) => {
+    setActiveChatRoomId(roomId);
+    setActiveView(view);
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center scanlines relative">
@@ -96,7 +106,7 @@ export default function App() {
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
-        return <Dashboard onSwitchView={handleNavClick} />;
+        return <Dashboard onSwitchView={handleNavClick} onSwitchViewWithRoom={handleSwitchViewWithRoom} />;
       case 'perfil':
         return <Perfil />;
       case 'retos':
@@ -105,13 +115,22 @@ export default function App() {
         return <Vehiculos />;
       case 'notificaciones':
         return <Notificaciones />;
+      case 'chat':
+        return currentUser ? (
+          <Chat 
+            currentUser={currentUser} 
+            activeRoomId={activeChatRoomId} 
+            setActiveRoomId={setActiveChatRoomId} 
+          />
+        ) : null;
       default:
-        return <Dashboard onSwitchView={handleNavClick} />;
+        return <Dashboard onSwitchView={handleNavClick} onSwitchViewWithRoom={handleSwitchViewWithRoom} />;
     }
   };
 
   const menuItems = [
     { id: 'dashboard', label: 'New Challenges', icon: 'sports_score' },
+    { id: 'chat', label: 'Live Chat', icon: 'chat' },
     { id: 'notificaciones', label: 'Live Alerts', icon: 'bolt' },
     { id: 'vehiculos', label: 'Garage', icon: 'directions_car' },
     { id: 'retos', label: 'Leaderboard', icon: 'leaderboard' },
@@ -255,6 +274,7 @@ export default function App() {
       <nav className="md:hidden flex justify-around items-center h-20 pb-safe px-4 fixed bottom-0 w-full z-50 bg-[#20201f]/95 backdrop-blur-md border-t border-outline-variant/30 shadow-[0_-4px_10px_rgba(255,87,25,0.15)]">
         {[
           { id: 'dashboard', label: 'Feed', icon: 'speed' },
+          { id: 'chat', label: 'Chat', icon: 'chat' },
           { id: 'retos', label: 'Race', icon: 'flag' },
           { id: 'vehiculos', label: 'Garage', icon: 'minor_crash' },
           { id: 'perfil', label: 'Profile', icon: 'person' },
