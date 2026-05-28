@@ -9,6 +9,7 @@ import type { User } from '../../services/auth.service';
 import type { Challenge } from '../../services/challenge.service';
 import type { RankingUser } from '../../services/user.service';
 import ChallengeHUD from '../../components/ChallengeHUD';
+import ChallengeDetailModal from '../../components/ChallengeDetailModal';
 
 const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBYR4VH9Q7lnQMe14FpOwtCRSPQZNWWixixsuyVD5R66ZIHDuSjmDgx3pMoef-nzMhyieLT58_EfzglLFsgH0ePPf0-eKdrMaRlRXkfkI29HCDWjoJu9cZmotB-Gtr3zNjeCKXDyZMUTRz45p1FcdlElppE_WjgaDFVdZ7Qrb1Ofe_LBafAtMvcTY80yPrfrqBVHEbUjA1HjhbuOyEqK8wfjqAEnQFQt1LTTIVPxKhrwTaHycMGtpAr-GxioENhzM1IzYH4ALpPJz-G';
 
@@ -32,6 +33,7 @@ export default function Retos() {
   const [outcome, setOutcome] = useState<'win' | 'loss'>('win');
   const [submittingResult, setSubmittingResult] = useState(false);
   const [hudChallenge, setHudChallenge] = useState<Challenge | null>(null);
+  const [selectedDetailChallenge, setSelectedDetailChallenge] = useState<Challenge | null>(null);
 
   const fetchUserData = async () => {
     try {
@@ -436,19 +438,32 @@ export default function Retos() {
                           )}
                         </div>
                       </div>
-
                       <div className="flex gap-2 shrink-0 w-full sm:w-auto justify-end">
                         {activeTab === 'abiertos' && (
-                          <button 
-                            onClick={() => handleJoinChallenge(c.id)}
-                            className="bg-primary-container hover:bg-primary text-on-primary-container font-mono text-[10px] font-bold px-5 py-2 glow-primary btn-notch transition-all cursor-pointer select-none"
-                          >
-                            UNIRSE AL RETO
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setSelectedDetailChallenge(c)}
+                              className="bg-transparent border border-outline-variant hover:bg-surface-variant text-on-surface-variant font-mono text-[10px] font-bold px-4 py-2 btn-notch transition-colors cursor-pointer select-none"
+                            >
+                              VER DETALLES
+                            </button>
+                            <button 
+                              onClick={() => handleJoinChallenge(c.id)}
+                              className="bg-primary-container hover:bg-primary text-on-primary-container font-mono text-[10px] font-bold px-5 py-2 glow-primary btn-notch transition-all cursor-pointer select-none"
+                            >
+                              UNIRSE AL RETO
+                            </button>
+                          </div>
                         )}
 
                         {activeTab === 'pendientes' && (
-                          <>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setSelectedDetailChallenge(c)}
+                              className="bg-transparent border border-outline-variant hover:bg-surface-variant text-on-surface-variant font-mono text-[10px] font-bold px-4 py-2 btn-notch transition-colors cursor-pointer select-none"
+                            >
+                              VER DETALLES
+                            </button>
                             {isSentByMe ? (
                               <button 
                                 onClick={() => handleUpdateStatus(c.id, 'cancelado')}
@@ -472,11 +487,17 @@ export default function Retos() {
                                 </button>
                               </>
                             )}
-                          </>
+                          </div>
                         )}
 
                         {activeTab === 'activos' && (
                           <div className="flex gap-2">
+                            <button
+                              onClick={() => setSelectedDetailChallenge(c)}
+                              className="bg-transparent border border-outline-variant hover:bg-surface-variant text-on-surface-variant font-mono text-[10px] font-bold px-4 py-2 btn-notch transition-colors cursor-pointer select-none"
+                            >
+                              VER DETALLES
+                            </button>
                             <button 
                               onClick={() => setHudChallenge(c)}
                               className="font-mono text-[10px] font-bold px-4 py-2 btn-notch bg-secondary-container text-on-secondary shadow-[0_0_8px_#00e3fd] hover:bg-secondary-fixed transition-all cursor-pointer select-none"
@@ -502,15 +523,23 @@ export default function Retos() {
 
                         {activeTab === 'completados' && (
                           <div className="text-right font-mono flex flex-col items-end gap-1.5">
-                            {c.ganador_id === currentUser?.id ? (
-                              <span className="border border-tertiary bg-tertiary/10 text-tertiary-fixed text-[10px] font-bold px-3 py-1 btn-notch uppercase select-none">
-                                VICTORIA
-                              </span>
-                            ) : (
-                              <span className="border border-error bg-error/10 text-error text-[10px] font-bold px-3 py-1 btn-notch uppercase select-none">
-                                DERROTA
-                              </span>
-                            )}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setSelectedDetailChallenge(c)}
+                                className="bg-transparent border border-outline-variant hover:bg-surface-variant text-on-surface-variant font-mono text-[10px] font-bold px-4 py-2 btn-notch transition-colors cursor-pointer select-none"
+                              >
+                                VER DETALLES
+                              </button>
+                              {c.ganador_id === currentUser?.id ? (
+                                <span className="border border-tertiary bg-tertiary/10 text-tertiary-fixed text-[10px] font-bold px-3 py-1 btn-notch uppercase select-none">
+                                  VICTORIA
+                                </span>
+                              ) : (
+                                <span className="border border-error bg-error/10 text-error text-[10px] font-bold px-3 py-1 btn-notch uppercase select-none">
+                                  DERROTA
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[8px] text-on-surface-variant uppercase">
                               COMPLETADO: {c.updated_at ? new Date(c.updated_at).toLocaleDateString() : 'N/A'}
                             </span>
@@ -623,6 +652,15 @@ export default function Retos() {
           challenge={hudChallenge} 
           currentUser={currentUser} 
           onClose={() => setHudChallenge(null)} 
+        />
+      )}
+
+      {selectedDetailChallenge && currentUser && (
+        <ChallengeDetailModal
+          challenge={selectedDetailChallenge}
+          currentUser={currentUser}
+          onClose={() => setSelectedDetailChallenge(null)}
+          onJoin={handleJoinChallenge}
         />
       )}
     </div>

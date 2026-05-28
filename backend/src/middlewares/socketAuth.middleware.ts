@@ -17,7 +17,6 @@ export const socketAuthMiddleware = (socket: Socket, next: (err?: Error) => void
       return next(new Error('Authentication error: Invalid token'));
     }
 
-    // Attach decoded user data to the socket object
     socket.data.user = decoded;
     next();
   } catch (error) {

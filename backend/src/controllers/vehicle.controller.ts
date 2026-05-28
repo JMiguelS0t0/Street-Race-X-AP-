@@ -49,7 +49,7 @@ export const createVehicle = asyncHandler(async (req: Request, res: Response) =>
   let vehicle;
 
   if (isActivo) {
-    // Un piloto solo puede tener un vehículo activo a la vez para competir. Se usa una transacción para desactivar el anterior de forma atómica.
+    
     const result = await prisma.$transaction(async (tx: any) => {
       await tx.vehicle.updateMany({
         where: { user_id: authReq.user.id },
@@ -99,7 +99,7 @@ export const updateVehicle = asyncHandler(async (req: Request, res: Response) =>
     ]);
     return sendSuccess(res, undefined, 'Vehículo actualizado y marcado como activo para competir');
   } else if (activo === false) {
-    // Permitimos desactivar el vehículo manualmente si el piloto no quiere competir temporalmente.
+    
     const vehicle = await prisma.vehicle.update({
       where: { id },
       data: { marca, modelo, año, color, placa, foto, modificaciones, activo: false }

@@ -31,7 +31,7 @@ export const updateCategory = asyncHandler(async (req: Request, res: Response) =
 
 export const deleteCategory = asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string;
-  // Eliminación lógica para no romper referencias históricas en usuarios o retos
+  
   await prisma.category.update({
     where: { id },
     data: { activo: false }

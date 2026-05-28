@@ -5,7 +5,6 @@ import { AuthenticatedRequest } from '../types';
 import { parsePagination, buildPaginationMeta } from '../utils/pagination';
 import { asyncHandler } from '../utils/asyncHandler';
 
-// List all chat rooms the authenticated user belongs to
 export const getRooms = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const userId = authReq.user.id;
@@ -48,13 +47,11 @@ export const getRooms = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, rooms);
 });
 
-// Retrieve message history in a specific room
 export const getChatHistory = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const chatRoomId = req.params.roomId as string;
   const userId = authReq.user.id;
 
-  // Validate that the room exists and user is a member
   const membership = await prisma.chatMember.findUnique({
     where: {
       chat_room_id_user_id: {
@@ -89,7 +86,6 @@ export const getChatHistory = asyncHandler(async (req: Request, res: Response) =
 
   const total = await prisma.message.count({ where: { chat_room_id: chatRoomId } });
 
-  // Format messages in chronological order (front-end expectation)
   const formattedMessages = messages.reverse();
 
   sendSuccess(res, {
@@ -98,22 +94,19 @@ export const getChatHistory = asyncHandler(async (req: Request, res: Response) =
   });
 });
 
-// Create a new private (1-to-1) or group chat room
 export const createRoom = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const { is_grupo, nombre, recipientId, userIds } = req.body;
   const userId = authReq.user.id;
 
   if (is_grupo) {
-    // Group Room
+    
     if (!nombre || nombre.trim() === '') {
       return sendError(res, 'El nombre del grupo es requerido', 400);
     }
 
-    // Filter out unique user IDs and ensure the creator is included
     const uniqueUserIds = Array.from(new Set([userId, ...(userIds || [])]));
 
-    // Validate that all added users exist
     const usersExist = await prisma.user.count({
       where: { id: { in: uniqueUserIds } }
     });
@@ -143,7 +136,7 @@ export const createRoom = asyncHandler(async (req: Request, res: Response) => {
     return sendSuccess(res, room, 'Sala de chat grupal creada', 201);
 
   } else {
-    // Private Room (1-to-1)
+    
     if (!recipientId) {
       return sendError(res, 'El recipientId es requerido para un chat privado', 400);
     }
@@ -160,7 +153,6 @@ export const createRoom = asyncHandler(async (req: Request, res: Response) => {
       return sendNotFound(res, 'Destinatario');
     }
 
-    // Check if a private room already exists between these two users
     const existingRooms = await prisma.chatRoom.findMany({
       where: {
         is_grupo: false,
@@ -181,7 +173,6 @@ export const createRoom = asyncHandler(async (req: Request, res: Response) => {
       return sendSuccess(res, existingPrivateRoom, 'Sala de chat privada existente');
     }
 
-    // Create a new private room
     const room = await prisma.$transaction(async (tx: any) => {
       const chatRoom = await tx.chatRoom.create({
         data: {

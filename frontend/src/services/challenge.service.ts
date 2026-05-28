@@ -1,10 +1,12 @@
 import api from './api';
+import type { RaceLocation } from './location.service';
 
 export interface ChallengeCreateParams {
   retador_id?: string | null;
   retado_id?: string | null;
   tipo_carrera: string;
   ubicacion_acordada: string;
+  location_id?: string | null;
   fecha_acordada?: string | null;
   notas?: string;
 }
@@ -18,6 +20,8 @@ export interface Challenge {
   tipo_carrera: string | null;
   estado: string | null;
   ubicacion_acordada: string | null;
+  location_id?: string | null;
+  location?: RaceLocation | null;
   fecha_acordada: string | null;
   notas: string | null;
   ganador_id: string | null;

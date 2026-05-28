@@ -4,7 +4,7 @@ import { prismaMock } from '../../utils/prisma-mock';
 describe('Challenge Service', () => {
   describe('processChallengeCompletion', () => {
     it('should throw an error if challengeId is missing', async () => {
-      // 🔴 RED: This test will fail initially because the service doesn't throw this error yet.
+      
       const input = {
         challengeId: '',
         ganadorId: 'win1',

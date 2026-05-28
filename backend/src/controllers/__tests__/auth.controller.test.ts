@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { login } from '../auth.controller';
 import prisma from '../../config/prisma';
 
-// Mock dependencias
 jest.mock('../../config/prisma', () => ({
   user: {
     findUnique: jest.fn(),
@@ -36,9 +35,8 @@ describe('Auth Controller', () => {
 
   describe('login', () => {
     it('should return 400 if email or password is missing', async () => {
-      // 🔴 RED: This will fail because the controller currently returns 401 Credenciales inválidas,
-      // or throws if email is missing. We want it to explicitly return 400 Bad Request.
-      req = { body: { email: 'test@example.com' } }; // missing password
+      
+      req = { body: { email: 'test@example.com' } }; 
 
       await login(req as Request, res as Response, jest.fn());
 

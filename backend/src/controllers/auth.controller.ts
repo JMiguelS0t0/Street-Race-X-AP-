@@ -111,7 +111,7 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
        return sendError(res, 'Token inválido', 401);
     }
 
-    const MAX_AGE_SECONDS = 86400; // 1 día
+    const MAX_AGE_SECONDS = 86400; 
     const currentTimestamp = Math.floor(Date.now() / 1000);
     if (decoded.iat && currentTimestamp - decoded.iat > MAX_AGE_SECONDS) {
       return sendError(res, 'El token ha excedido el límite de antigüedad para ser renovado. Por favor inicia sesión nuevamente.', 401);

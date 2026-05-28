@@ -25,7 +25,8 @@ export const listAllChallenges = asyncHandler(async (req: Request, res: Response
       retador: { select: { id: true, username: true, rango: true } },
       retado: { select: { id: true, username: true, rango: true } },
       vehiculo_retador: { select: { id: true, marca: true, modelo: true } },
-      vehiculo_retado: { select: { id: true, marca: true, modelo: true } }
+      vehiculo_retado: { select: { id: true, marca: true, modelo: true } },
+      location: true
     },
     orderBy: { [sortField]: sortOrder }
   });

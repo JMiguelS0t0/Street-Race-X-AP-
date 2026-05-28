@@ -5,9 +5,12 @@ import { adminListAllChallenges, adminDeleteChallenge, createChallenge } from '.
 import type { ChallengeAdmin } from '../../services/challenge.service';
 import { adminListAllVehicles, adminDeleteVehicle } from '../../services/vehicle.service';
 import type { VehicleAdmin } from '../../services/vehicle.service';
+import { getLocations, createLocation, deleteLocation } from '../../services/location.service';
+import type { RaceLocation } from '../../services/location.service';
+import LocationDrawMap from '../../components/LocationDrawMap';
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState<'pilotos' | 'retos' | 'garaje'>('pilotos');
+  const [activeTab, setActiveTab] = useState<'pilotos' | 'retos' | 'garaje' | 'localizaciones'>('pilotos');
 
   const [users, setUsers] = useState<UserAdmin[]>([]);
   const [userPage, setUserPage] = useState(1);
@@ -28,10 +31,19 @@ export default function Admin() {
 
   const [showCreateChallengeModal, setShowCreateChallengeModal] = useState(false);
   const [newTipoCarrera, setNewTipoCarrera] = useState('Drag');
-  const [newUbicacion, setNewUbicacion] = useState('');
   const [newFecha, setNewFecha] = useState('');
   const [newNotas, setNewNotas] = useState('');
   const [creatingChallenge, setCreatingChallenge] = useState(false);
+
+  const [locations, setLocations] = useState<RaceLocation[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [showCreateLocationModal, setShowCreateLocationModal] = useState(false);
+  const [newLocNombre, setNewLocNombre] = useState('');
+  const [newLocTipo, setNewLocTipo] = useState('Drag');
+  const [newLocDesc, setNewLocDesc] = useState('');
+  const [newLocPath, setNewLocPath] = useState<[number, number][]>([]);
+  const [creatingLocation, setCreatingLocation] = useState(false);
+  const [selectedLocationId, setSelectedLocationId] = useState('');
 
   const [vehicles, setVehicles] = useState<VehicleAdmin[]>([]);
   const [vehiclePage, setVehiclePage] = useState(1);
@@ -100,10 +112,18 @@ export default function Admin() {
     }
   };
 
-  const handleOpenCreateChallenge = () => {
+  const handleOpenCreateChallenge = async () => {
     setShowCreateChallengeModal(true);
     setError(null);
     setSuccessMessage(null);
+    try {
+      const res = await getLocations();
+      if (res.success) {
+        setLocations(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleCreateChallengeSubmit = async (e: React.FormEvent) => {
@@ -112,16 +132,18 @@ export default function Admin() {
     setError(null);
     setSuccessMessage(null);
     try {
+      const selectedLoc = locations.find(l => l.id === selectedLocationId);
       const res = await createChallenge({
         tipo_carrera: newTipoCarrera,
-        ubicacion_acordada: newUbicacion,
+        ubicacion_acordada: selectedLoc ? selectedLoc.nombre : 'Pista Callejera',
+        location_id: selectedLocationId || null,
         fecha_acordada: newFecha ? new Date(newFecha).toISOString() : null,
         notas: newNotas || undefined
       });
       if (res.success) {
         setSuccessMessage('CHALLENGE CONFIGURATION DEPLOYED SUCCESSFULLY');
         setShowCreateChallengeModal(false);
-        setNewUbicacion('');
+        setSelectedLocationId('');
         setNewFecha('');
         setNewNotas('');
         loadChallenges(challengePage, challengeSearch);
@@ -135,6 +157,76 @@ export default function Admin() {
     }
   };
 
+  const loadLocationsList = async () => {
+    setLocationsLoading(true);
+    setError(null);
+    try {
+      const res = await getLocations();
+      if (res.success) {
+        setLocations(res.data);
+      } else {
+        setError(res.error || 'Failed to load locations');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to load locations registry');
+    } finally {
+      setLocationsLoading(false);
+    }
+  };
+
+  const handleCreateLocationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newLocPath.length < 2) {
+      setError('Debes trazar al menos 2 puntos en el mapa para la ruta');
+      return;
+    }
+    setCreatingLocation(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await createLocation({
+        nombre: newLocNombre,
+        tipo: newLocTipo,
+        descripcion: newLocDesc,
+        ruta: JSON.stringify(newLocPath)
+      });
+      if (res.success) {
+        setSuccessMessage('NUEVA LOCALIZACIÓN REGISTRADA EN EL SISTEMA');
+        setShowCreateLocationModal(false);
+        setNewLocNombre('');
+        setNewLocTipo('Drag');
+        setNewLocDesc('');
+        setNewLocPath([]);
+        loadLocationsList();
+      } else {
+        setError(res.error || 'Error al crear localización');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to inject location');
+    } finally {
+      setCreatingLocation(false);
+    }
+  };
+
+  const handleDeleteLocationClick = async (id: string, nombre: string) => {
+    if (!window.confirm(`¿ELIMINAR LA LOCALIZACIÓN "${nombre.toUpperCase()}"?\nESTO PODRÍA DESASOCIAR RETOS EN CURSO.`)) {
+      return;
+    }
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await deleteLocation(id);
+      if (res.success) {
+        setSuccessMessage(`LOCALIZACIÓN "${nombre.toUpperCase()}" ELIMINADA`);
+        loadLocationsList();
+      } else {
+        setError(res.error || 'Error al eliminar localización');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete location');
+    }
+  };
+
   useEffect(() => {
     setError(null);
     setSuccessMessage(null);
@@ -144,6 +236,8 @@ export default function Admin() {
       loadChallenges(challengePage, challengeSearch);
     } else if (activeTab === 'garaje') {
       loadVehicles(vehiclePage, vehicleSearch);
+    } else if (activeTab === 'localizaciones') {
+      loadLocationsList();
     }
   }, [activeTab]);
 
@@ -319,6 +413,20 @@ export default function Admin() {
           <span className="skew-x-[12deg] block flex items-center gap-2">
             <span className="material-symbols-outlined text-[16px]">directions_car</span>
             GARAJE GLOBAL
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('localizaciones')}
+          className={`px-6 py-2.5 uppercase font-bold text-[12px] skew-x-[-12deg] transition-all border-t border-x border-transparent ${
+            activeTab === 'localizaciones'
+              ? 'bg-surface-container text-secondary-container border-outline-variant/50 border-b-[#1e1e1e]'
+              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/30'
+          }`}
+        >
+          <span className="skew-x-[12deg] block flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px]">map</span>
+            LOCALIZACIONES
           </span>
         </button>
       </div>
@@ -704,6 +812,87 @@ export default function Admin() {
             )}
           </div>
         )}
+
+        {activeTab === 'localizaciones' && (
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-[16px] italic font-black text-on-surface uppercase font-mono">
+                REGISTRY: LOCALIZACIONES DE CARRERA
+              </h3>
+              <button
+                onClick={() => {
+                  setShowCreateLocationModal(true);
+                  setError(null);
+                  setSuccessMessage(null);
+                }}
+                className="flex items-center justify-center gap-1.5 bg-[#ff5719] hover:bg-[#ff5719]/80 text-[#521300] font-mono text-[10px] font-bold uppercase py-1.5 px-4 skew-x-[-12deg] transition-all cursor-pointer select-none"
+              >
+                <span className="skew-x-[12deg] flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">add_location</span>
+                  CREAR PISTA
+                </span>
+              </button>
+            </div>
+
+            {locationsLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <span className="material-symbols-outlined text-secondary-container text-[36px] animate-spin">
+                  sync
+                </span>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-outline-variant/20 text-left font-mono text-[12px] bg-[#141413]">
+                  <thead>
+                    <tr className="bg-[#1f1f1e] text-primary-container border-b border-outline-variant/30">
+                      <th className="p-3 uppercase font-black tracking-wider">PISTA</th>
+                      <th className="p-3 uppercase font-black tracking-wider">TIPO</th>
+                      <th className="p-3 uppercase font-black tracking-wider">DESCRIPCIÓN</th>
+                      <th className="p-3 uppercase font-black tracking-wider text-center">PUNTOS DE RUTA</th>
+                      <th className="p-3 uppercase font-black tracking-wider text-right">ACCIONES</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {locations.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-on-surface-variant">
+                          NO LOCATIONS FOUND IN CORE REGISTRY
+                        </td>
+                      </tr>
+                    ) : (
+                      locations.map((loc) => {
+                        let numPoints = 0;
+                        try {
+                          numPoints = JSON.parse(loc.ruta).length;
+                        } catch (e) {}
+
+                        return (
+                          <tr
+                            key={loc.id}
+                            className="border-b border-outline-variant/10 hover:bg-surface-container-high/40 transition-colors"
+                          >
+                            <td className="p-3 font-bold uppercase text-on-surface">{loc.nombre}</td>
+                            <td className="p-3 uppercase text-on-surface-variant">{loc.tipo}</td>
+                            <td className="p-3 text-on-surface-variant max-w-xs truncate">{loc.descripcion || 'SIN DESCRIPCIÓN'}</td>
+                            <td className="p-3 text-center text-secondary-container font-bold">{numPoints}</td>
+                            <td className="p-3 text-right">
+                              <button
+                                onClick={() => handleDeleteLocationClick(loc.id, loc.nombre)}
+                                className="bg-transparent border border-error hover:bg-error/10 text-error font-bold px-3 py-1 text-[10px] skew-x-[-12deg] cursor-pointer"
+                              >
+                                <span className="skew-x-[12deg] block">DELETE</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {editingUser && (
@@ -822,14 +1011,19 @@ export default function Admin() {
                 <label className="text-[9px] font-bold text-on-surface-variant uppercase">
                   UBICACIÓN ACORDADA (SECTOR)
                 </label>
-                <input
-                  type="text"
-                  value={newUbicacion}
-                  onChange={(e) => setNewUbicacion(e.target.value)}
+                <select
+                  value={selectedLocationId}
+                  onChange={(e) => setSelectedLocationId(e.target.value)}
                   required
-                  placeholder="e.g. Sector 7, Muelle Central"
                   className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
-                />
+                >
+                  <option value="">SELECCIONAR PISTA</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.nombre.toUpperCase()} ({loc.tipo})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -873,6 +1067,86 @@ export default function Admin() {
                 >
                   <span className="skew-x-[12deg] block">
                     {creatingChallenge ? 'INJECTING...' : 'DEPLOY'}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showCreateLocationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-[#20201f] border border-outline-variant p-6 relative max-w-lg w-full header-notch shadow-[0_0_24px_rgba(255,87,25,0.15)] font-mono flex flex-col gap-4 my-8">
+            <div className="absolute top-0 left-0 w-2 h-full bg-[#ff5719]" />
+            <h3 className="text-[18px] italic font-black text-primary-container uppercase mb-2">
+              CREAR NUEVA LOCALIZACIÓN / PISTA
+            </h3>
+            <form onSubmit={handleCreateLocationSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  NOMBRE DE LA PISTA
+                </label>
+                <input
+                  type="text"
+                  value={newLocNombre}
+                  onChange={(e) => setNewLocNombre(e.target.value)}
+                  required
+                  placeholder="e.g. Puerto Industrial - Recta A"
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  MODALIDAD
+                </label>
+                <select
+                  value={newLocTipo}
+                  onChange={(e) => setNewLocTipo(e.target.value)}
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
+                >
+                  <option value="Drag">DRAG (ACELERACIÓN)</option>
+                  <option value="Circuito">CIRCUITO</option>
+                  <option value="Drift">DRIFT (DERRAPE)</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  DESCRIPCIÓN DE LA PISTA
+                </label>
+                <textarea
+                  value={newLocDesc}
+                  onChange={(e) => setNewLocDesc(e.target.value)}
+                  placeholder="Instrucciones, peligros u otros datos..."
+                  rows={2}
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container resize-none"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  TRAZAR RUTA (HAZ CLICS EN EL MAPA)
+                </label>
+                <LocationDrawMap onPathChange={setNewLocPath} />
+              </div>
+
+              <div className="flex gap-3 justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateLocationModal(false)}
+                  className="bg-transparent border border-error hover:bg-error/10 text-error font-bold px-4 py-2 text-[11px] skew-x-[-12deg] cursor-pointer"
+                >
+                  <span className="skew-x-[12deg] block">CANCEL</span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingLocation}
+                  className="bg-primary-container text-on-primary-container font-bold px-5 py-2 text-[11px] skew-x-[-12deg] hover:bg-primary cursor-pointer disabled:opacity-50"
+                >
+                  <span className="skew-x-[12deg] block">
+                    {creatingLocation ? 'CREANDO...' : 'GUARDAR PISTA'}
                   </span>
                 </button>
               </div>

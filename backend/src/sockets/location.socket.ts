@@ -5,10 +5,9 @@ export const registerLocationHandlers = (io: Server, socket: Socket) => {
   const userId = socket.data.user.id;
   const username = socket.data.user.username;
 
-  // Join a challenge location sharing room
   socket.on('join_location_sharing', async ({ challengeId }: { challengeId: string }) => {
     try {
-      // Validate challenge and user participation
+      
       const challenge = await prisma.challenge.findUnique({
         where: { id: challengeId }
       });
@@ -28,14 +27,12 @@ export const registerLocationHandlers = (io: Server, socket: Socket) => {
       socket.join(roomName);
       console.log(`[location-socket]: ${username} comenzó a compartir ubicación en la sala ${roomName}`);
       
-      // Notify the other client in the room
       socket.to(roomName).emit('player_joined_location', { userId, username });
     } catch (error) {
       socket.emit('location_error', { message: 'Error al iniciar seguimiento de ubicación' });
     }
   });
 
-  // Share live coordinates
   socket.on('update_location', ({
     challengeId,
     lat,
@@ -51,7 +48,6 @@ export const registerLocationHandlers = (io: Server, socket: Socket) => {
   }) => {
     const roomName = `location_challenge_${challengeId}`;
     
-    // Broadcast location directly to the other participants in the room
     socket.to(roomName).emit('location_updated', {
       userId,
       username,
@@ -63,7 +59,6 @@ export const registerLocationHandlers = (io: Server, socket: Socket) => {
     });
   });
 
-  // Leave a challenge location sharing room
   socket.on('leave_location_sharing', ({ challengeId }: { challengeId: string }) => {
     const roomName = `location_challenge_${challengeId}`;
     socket.leave(roomName);

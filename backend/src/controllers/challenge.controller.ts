@@ -7,7 +7,7 @@ import { processChallengeCompletion } from '../services/challenge.service';
 import { asyncHandler } from '../utils/asyncHandler';
 
 export const createChallenge = asyncHandler(async (req: Request, res: Response) => {
-  const { retador_id, retado_id, tipo_carrera, ubicacion_acordada, fecha_acordada, notas } = req.body;
+  const { retador_id, retado_id, tipo_carrera, ubicacion_acordada, location_id, fecha_acordada, notas } = req.body;
 
   let retador = null;
   let retado = null;
@@ -58,6 +58,14 @@ export const createChallenge = asyncHandler(async (req: Request, res: Response) 
     }
   }
 
+  let finalUbicacion = ubicacion_acordada;
+  if (location_id) {
+    const loc = await prisma.location.findUnique({ where: { id: location_id } });
+    if (loc) {
+      finalUbicacion = loc.nombre;
+    }
+  }
+
   const challenge = await prisma.challenge.create({
     data: {
       retador_id: retador ? retador.id : null,
@@ -65,7 +73,8 @@ export const createChallenge = asyncHandler(async (req: Request, res: Response) 
       vehiculo_retador_id: retador && retador.vehicles.length > 0 ? retador.vehicles[0].id : null,
       vehiculo_retado_id: retado && retado.vehicles.length > 0 ? retado.vehicles[0].id : null,
       tipo_carrera,
-      ubicacion_acordada,
+      ubicacion_acordada: finalUbicacion,
+      location_id: location_id || null,
       fecha_acordada: fecha_acordada ? new Date(fecha_acordada) : null,
       notas,
       estado: 'pendiente'
@@ -176,7 +185,8 @@ export const listChallenges = asyncHandler(async (req: Request, res: Response) =
       retador: { select: { username: true, rango: true } },
       retado: { select: { username: true, rango: true } },
       vehiculo_retador: { select: { marca: true, modelo: true } },
-      vehiculo_retado: { select: { marca: true, modelo: true } }
+      vehiculo_retado: { select: { marca: true, modelo: true } },
+      location: true
     },
     orderBy: { [sortField]: sortOrder }
   });
@@ -194,7 +204,8 @@ export const getChallengeDetail = asyncHandler(async (req: Request, res: Respons
       retador: { select: { username: true, rango: true } },
       retado: { select: { username: true, rango: true } },
       vehiculo_retador: true,
-      vehiculo_retado: true
+      vehiculo_retado: true,
+      location: true
     }
   });
   if (!challenge) return sendNotFound(res, 'Reto');
@@ -409,7 +420,8 @@ export const getGlobalHistory = asyncHandler(async (req: Request, res: Response)
     include: {
       retador: { select: { username: true, rango: true } },
       retado: { select: { username: true, rango: true } },
-      ganador: { select: { username: true } }
+      ganador: { select: { username: true } },
+      location: true
     },
     orderBy: { updated_at: 'desc' },
     take: 50
