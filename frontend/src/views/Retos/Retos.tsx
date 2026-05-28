@@ -8,6 +8,7 @@ import { getTopRanking } from '../../services/user.service';
 import type { User } from '../../services/auth.service';
 import type { Challenge } from '../../services/challenge.service';
 import type { RankingUser } from '../../services/user.service';
+import ChallengeHUD from '../../components/ChallengeHUD';
 
 const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBYR4VH9Q7lnQMe14FpOwtCRSPQZNWWixixsuyVD5R66ZIHDuSjmDgx3pMoef-nzMhyieLT58_EfzglLFsgH0ePPf0-eKdrMaRlRXkfkI29HCDWjoJu9cZmotB-Gtr3zNjeCKXDyZMUTRz45p1FcdlElppE_WjgaDFVdZ7Qrb1Ofe_LBafAtMvcTY80yPrfrqBVHEbUjA1HjhbuOyEqK8wfjqAEnQFQt1LTTIVPxKhrwTaHycMGtpAr-GxioENhzM1IzYH4ALpPJz-G';
 
@@ -30,6 +31,7 @@ export default function Retos() {
   const [score, setScore] = useState('');
   const [outcome, setOutcome] = useState<'win' | 'loss'>('win');
   const [submittingResult, setSubmittingResult] = useState(false);
+  const [hudChallenge, setHudChallenge] = useState<Challenge | null>(null);
 
   const fetchUserData = async () => {
     try {
@@ -423,20 +425,28 @@ export default function Retos() {
                         )}
 
                         {activeTab === 'activos' && (
-                          <button 
-                            onClick={() => {
-                              setSelectedChallengeId(c.id);
-                              setOutcome('win');
-                              setScore('');
-                            }}
-                            className={`font-mono text-[10px] font-bold px-4 py-2 btn-notch transition-all cursor-pointer select-none ${
-                              selectedChallengeId === c.id 
-                                ? 'bg-secondary-container text-on-secondary shadow-[0_0_8px_#00e3fd]' 
-                                : 'bg-transparent border border-secondary-container text-secondary-container hover:bg-secondary-container/10'
-                            }`}
-                          >
-                            {selectedChallengeId === c.id ? 'SELECCIONADO' : 'REGISTRAR'}
-                          </button>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => setHudChallenge(c)}
+                              className="font-mono text-[10px] font-bold px-4 py-2 btn-notch bg-secondary-container text-on-secondary shadow-[0_0_8px_#00e3fd] hover:bg-secondary-fixed transition-all cursor-pointer select-none"
+                            >
+                              INICIAR HUD
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setSelectedChallengeId(c.id);
+                                setOutcome('win');
+                                setScore('');
+                              }}
+                              className={`font-mono text-[10px] font-bold px-4 py-2 btn-notch transition-all cursor-pointer select-none ${
+                                selectedChallengeId === c.id 
+                                  ? 'bg-secondary-container text-on-secondary shadow-[0_0_8px_#00e3fd]' 
+                                  : 'bg-transparent border border-secondary-container text-secondary-container hover:bg-secondary-container/10'
+                              }`}
+                            >
+                              {selectedChallengeId === c.id ? 'SELECCIONADO' : 'REGISTRAR'}
+                            </button>
+                          </div>
                         )}
 
                         {activeTab === 'completados' && (
@@ -556,6 +566,14 @@ export default function Retos() {
           </div>
         </div>
       </div>
+
+      {hudChallenge && currentUser && (
+        <ChallengeHUD 
+          challenge={hudChallenge} 
+          currentUser={currentUser} 
+          onClose={() => setHudChallenge(null)} 
+        />
+      )}
     </div>
   );
 }

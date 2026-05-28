@@ -31,7 +31,7 @@ export interface AuthResponse {
 
 export interface LoginParams {
   email: string;
-  password_hash?: string; // Wait, backend uses req.body.password, not password_hash!
+  password_hash?: string; 
   password?: string;
 }
 

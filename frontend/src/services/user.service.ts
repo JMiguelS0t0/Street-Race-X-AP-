@@ -45,4 +45,3 @@ export const getTopRanking = async (limit?: number): Promise<RankingResponse> =>
   const response = await api.get<RankingResponse>(`/users/ranking${limit ? `?limit=${limit}` : ''}`);
   return response.data;
 };
-
