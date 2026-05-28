@@ -161,7 +161,7 @@ export default function Retos() {
       if (res.success) {
         setActionAlert({ 
           success: true, 
-          message: `SISTEMA: CARRERA REGISTRADA. ${outcome === 'win' ? '¡VICTORIA CONFIRMADA!' : 'DERROTA REGISTRADA.'}` 
+          message: `SISTEMA: ${res.message || (outcome === 'win' ? '¡VICTORIA REGISTRADA!' : 'DERROTA REGISTRADA.')}` 
         });
         setSelectedChallengeId('');
         setScore('');
@@ -194,6 +194,45 @@ export default function Retos() {
       case 'derrape': return 'route';
       default: return 'flag';
     }
+  };
+
+  const renderVotingStatus = (c: Challenge) => {
+    const retadorName = c.retador?.username || 'RETADOR';
+    const retadoName = c.retado?.username || 'RETADO';
+
+    if (!c.ganador_retador_id && !c.ganador_retado_id) {
+      return (
+        <div className="text-[10px] text-yellow-500 font-mono mt-1.5 flex items-center gap-1.5 uppercase">
+          <span className="material-symbols-outlined text-[12px]">pending</span>
+          <span>Falta votar: {retadorName} y {retadoName}</span>
+        </div>
+      );
+    }
+    if (c.ganador_retador_id && !c.ganador_retado_id) {
+      return (
+        <div className="text-[10px] text-yellow-500 font-mono mt-1.5 flex items-center gap-1.5 uppercase">
+          <span className="material-symbols-outlined text-[12px]">pending</span>
+          <span>Falta votar: {retadoName}</span>
+        </div>
+      );
+    }
+    if (!c.ganador_retador_id && c.ganador_retado_id) {
+      return (
+        <div className="text-[10px] text-yellow-500 font-mono mt-1.5 flex items-center gap-1.5 uppercase">
+          <span className="material-symbols-outlined text-[12px]">pending</span>
+          <span>Falta votar: {retadorName}</span>
+        </div>
+      );
+    }
+    if (c.ganador_retador_id && c.ganador_retado_id && c.ganador_retador_id !== c.ganador_retado_id) {
+      return (
+        <div className="text-[10px] text-error font-mono mt-1.5 flex items-center gap-1.5 uppercase font-bold">
+          <span className="material-symbols-outlined text-[12px]">warning</span>
+          <span>Votos en conflicto (No coinciden)</span>
+        </div>
+      );
+    }
+    return null;
   };
 
   const activeSelectedChallenge = challenges.find(c => c.id === selectedChallengeId);
@@ -436,6 +475,7 @@ export default function Retos() {
                               SPEC: "{c.notas}"
                             </p>
                           )}
+                          {activeTab === 'activos' && renderVotingStatus(c)}
                         </div>
                       </div>
                       <div className="flex gap-2 shrink-0 w-full sm:w-auto justify-end">
@@ -588,6 +628,20 @@ export default function Retos() {
                   <div>
                     <span className="font-bold text-secondary-container">PISTA:</span> {activeSelectedChallenge?.ubicacion_acordada}
                   </div>
+                  {activeSelectedChallenge && (
+                    <div className="border-t border-outline-variant/30 pt-1.5 mt-0.5">
+                      <div>
+                        <span className="font-bold text-secondary-container">TU VOTO:</span>
+                        {((activeSelectedChallenge.retador_id === currentUser?.id && activeSelectedChallenge.ganador_retador_id) ||
+                          (activeSelectedChallenge.retado_id === currentUser?.id && activeSelectedChallenge.ganador_retado_id)) ? (
+                          <span className="text-tertiary font-bold ml-1.5">REGISTRADO</span>
+                        ) : (
+                          <span className="text-yellow-500 font-bold ml-1.5">PENDIENTE</span>
+                        )}
+                      </div>
+                      {renderVotingStatus(activeSelectedChallenge)}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-1">

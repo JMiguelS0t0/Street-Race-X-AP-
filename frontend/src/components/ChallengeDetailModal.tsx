@@ -40,6 +40,45 @@ export default function ChallengeDetailModal({ challenge, currentUser, onClose, 
     }
   };
 
+  const renderVotingStatus = (c: Challenge) => {
+    const retadorName = c.retador?.username || 'RETADOR';
+    const retadoName = c.retado?.username || 'RETADO';
+
+    if (!c.ganador_retador_id && !c.ganador_retado_id) {
+      return (
+        <div className="text-[10px] text-yellow-500 font-mono mt-1 flex items-center gap-1 uppercase">
+          <span className="material-symbols-outlined text-[12px] mr-1">pending</span>
+          <span>Falta votar: {retadorName} y {retadoName}</span>
+        </div>
+      );
+    }
+    if (c.ganador_retador_id && !c.ganador_retado_id) {
+      return (
+        <div className="text-[10px] text-yellow-500 font-mono mt-1 flex items-center gap-1 uppercase">
+          <span className="material-symbols-outlined text-[12px] mr-1">pending</span>
+          <span>Falta votar: {retadoName}</span>
+        </div>
+      );
+    }
+    if (!c.ganador_retador_id && c.ganador_retado_id) {
+      return (
+        <div className="text-[10px] text-yellow-500 font-mono mt-1 flex items-center gap-1 uppercase">
+          <span className="material-symbols-outlined text-[12px] mr-1">pending</span>
+          <span>Falta votar: {retadorName}</span>
+        </div>
+      );
+    }
+    if (c.ganador_retador_id && c.ganador_retado_id && c.ganador_retador_id !== c.ganador_retado_id) {
+      return (
+        <div className="text-[10px] text-error font-mono mt-1 flex items-center gap-1 uppercase font-bold">
+          <span className="material-symbols-outlined text-[12px] mr-1">warning</span>
+          <span>Votos en conflicto (No coinciden)</span>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-[#20201f] border border-outline-variant p-6 relative max-w-2xl w-full header-notch shadow-[0_0_24px_rgba(255,87,25,0.15)] font-mono flex flex-col gap-5 my-8">
@@ -102,6 +141,12 @@ export default function ChallengeDetailModal({ challenge, currentUser, onClose, 
                 }`}>
                   {challenge.estado}
                 </span>
+                {(challenge.estado === 'aceptado' || challenge.estado === 'en_curso') && (
+                  <div className="mt-2.5 pt-2 border-t border-outline-variant/10">
+                    <span className="text-[9px] font-bold text-secondary-container uppercase block">CONSENSO DE VOTACIÓN</span>
+                    {renderVotingStatus(challenge)}
+                  </div>
+                )}
               </div>
             </div>
 

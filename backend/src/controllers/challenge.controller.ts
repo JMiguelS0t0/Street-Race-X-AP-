@@ -361,33 +361,74 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
 
   if (estado === 'completado') {
     if (!isRetador && !isRetado) {
-      return sendError(res, 'Solo los participantes del reto pueden completarlo', 403);
+      return sendError(res, 'Solo los participantes del reto pueden registrar el resultado', 403);
     }
     if (challenge.estado !== 'aceptado' && challenge.estado !== 'en_curso') {
-      return sendError(res, 'El reto no está en un estado válido para completarse', 400);
+      return sendError(res, 'El reto no está en un estado válido para registrar el resultado', 400);
     }
     if (!ganador_id) {
-      return sendError(res, 'Se requiere ganador_id para completar el reto', 400);
+      return sendError(res, 'Se requiere ganador_id para registrar el resultado', 400);
     }
     if (ganador_id !== challenge.retador_id && ganador_id !== challenge.retado_id) {
       return sendError(res, 'El ganador debe ser uno de los participantes del reto', 400);
     }
 
-    const isRetadorWinner = ganador_id === challenge.retador_id;
-    const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
-
-    if (challenge.retador && challenge.retado) {
-      await processChallengeCompletion({
-        challengeId: id,
-        ganadorId: ganador_id,
-        perdedorId: perdedor_id,
-        retadorUsername: challenge.retador.username,
-        retadoUsername: challenge.retado.username,
-        isRetadorWinner
-      });
+    const updateData: any = {};
+    if (isRetador) {
+      updateData.ganador_retador_id = ganador_id;
+    } else {
+      updateData.ganador_retado_id = ganador_id;
     }
 
-    return sendSuccess(res, undefined, 'Reto completado y estadísticas actualizadas');
+    const updated = await prisma.challenge.update({
+      where: { id },
+      data: {
+        ...updateData,
+        updated_at: new Date()
+      },
+      include: {
+        retador: { select: { id: true, username: true, rango: true } },
+        retado: { select: { id: true, username: true, rango: true } },
+        vehiculo_retador: { select: { marca: true, modelo: true } },
+        vehiculo_retado: { select: { marca: true, modelo: true } },
+        location: true
+      }
+    });
+
+    if (updated.ganador_retador_id && updated.ganador_retado_id) {
+      if (updated.ganador_retador_id === updated.ganador_retado_id) {
+        const isRetadorWinner = ganador_id === updated.retador_id;
+        const perdedor_id = isRetadorWinner ? updated.retado_id : updated.retador_id;
+
+        if (updated.retador && updated.retado && perdedor_id) {
+          await processChallengeCompletion({
+            challengeId: id,
+            ganadorId: ganador_id,
+            perdedorId: perdedor_id,
+            retadorUsername: updated.retador.username,
+            retadoUsername: updated.retado.username,
+            isRetadorWinner
+          });
+        }
+
+        const finalChallenge = await prisma.challenge.findUnique({
+          where: { id },
+          include: {
+            retador: { select: { username: true, rango: true } },
+            retado: { select: { username: true, rango: true } },
+            vehiculo_retador: { select: { marca: true, modelo: true } },
+            vehiculo_retado: { select: { marca: true, modelo: true } },
+            location: true
+          }
+        });
+
+        return sendSuccess(res, finalChallenge, 'Reto completado y estadísticas actualizadas');
+      } else {
+        return sendSuccess(res, updated, 'Conflicto de votos: Ambos pilotos deben elegir al mismo ganador.');
+      }
+    }
+
+    return sendSuccess(res, updated, 'Voto registrado. Esperando que el otro piloto registre el resultado.');
   }
 
   const updated = await prisma.challenge.update({

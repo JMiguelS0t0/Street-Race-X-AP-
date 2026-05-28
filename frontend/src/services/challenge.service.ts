@@ -25,6 +25,8 @@ export interface Challenge {
   fecha_acordada: string | null;
   notas: string | null;
   ganador_id: string | null;
+  ganador_retador_id?: string | null;
+  ganador_retado_id?: string | null;
   created_at: string | null;
   updated_at: string | null;
   retador?: { username: string; rango: string } | null;
@@ -143,5 +145,29 @@ export const adminListAllChallenges = async (
 
 export const adminDeleteChallenge = async (id: string): Promise<AdminDeleteChallengeResponse> => {
   const response = await api.delete<AdminDeleteChallengeResponse>(`/challenges/admin/${id}`);
+  return response.data;
+};
+
+export interface AdminUpdateChallengeResponse {
+  success: boolean;
+  message?: string;
+  data?: Challenge;
+  error?: string;
+}
+
+export const adminUpdateChallenge = async (
+  id: string,
+  data: {
+    tipo_carrera?: string;
+    location_id?: string | null;
+    fecha_acordada?: string | null;
+    notas?: string;
+    estado?: string;
+    ganador_id?: string | null;
+    ganador_retador_id?: string | null;
+    ganador_retado_id?: string | null;
+  }
+): Promise<AdminUpdateChallengeResponse> => {
+  const response = await api.patch<AdminUpdateChallengeResponse>(`/challenges/admin/${id}`, data);
   return response.data;
 };

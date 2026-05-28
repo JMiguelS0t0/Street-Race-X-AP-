@@ -47,6 +47,47 @@ export const deleteChallenge = asyncHandler(async (req: Request, res: Response) 
   sendSuccess(res, undefined, 'Reto eliminado por administrador');
 });
 
+export const updateChallengeAdmin = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const { tipo_carrera, location_id, fecha_acordada, notas, estado, ganador_id, ganador_retador_id, ganador_retado_id } = req.body;
+
+  const challenge = await prisma.challenge.findUnique({ where: { id } });
+  if (!challenge) return sendNotFound(res, 'Reto');
+
+  let finalUbicacion = challenge.ubicacion_acordada;
+  if (location_id) {
+    const loc = await prisma.location.findUnique({ where: { id: location_id } });
+    if (loc) {
+      finalUbicacion = loc.nombre;
+    }
+  }
+
+  const updated = await prisma.challenge.update({
+    where: { id },
+    data: {
+      tipo_carrera,
+      location_id: location_id || null,
+      ubicacion_acordada: finalUbicacion,
+      fecha_acordada: fecha_acordada ? new Date(fecha_acordada) : null,
+      notas,
+      estado,
+      ganador_id: ganador_id || null,
+      ganador_retador_id: ganador_retador_id || null,
+      ganador_retado_id: ganador_retado_id || null,
+      updated_at: new Date()
+    },
+    include: {
+      retador: { select: { id: true, username: true, rango: true } },
+      retado: { select: { id: true, username: true, rango: true } },
+      vehiculo_retador: { select: { id: true, marca: true, modelo: true } },
+      vehiculo_retado: { select: { id: true, marca: true, modelo: true } },
+      location: true
+    }
+  });
+
+  sendSuccess(res, updated, 'Reto actualizado por administrador');
+});
+
 export const listAllVehicles = asyncHandler(async (req: Request, res: Response) => {
   const { page, limit, skip, sortField, sortOrder } = parsePagination(req);
   const search = req.query.search as string;

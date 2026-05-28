@@ -82,6 +82,8 @@ model Challenge {
   tipo_carrera        String?   @db.NVarChar(50)
   estado              String?   @default("pendiente") @db.NVarChar(20)
   ganador_id          String?   @db.UniqueIdentifier
+  ganador_retador_id  String?   @db.UniqueIdentifier
+  ganador_retado_id   String?   @db.UniqueIdentifier
   ubicacion_acordada  String?   @db.NVarChar(255)
   location_id         String?   @db.UniqueIdentifier
   fecha_acordada      DateTime? @db.DateTime2

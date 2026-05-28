@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { listAllUsers, adminUpdateUser, adminDeleteUser } from '../../services/user.service';
 import type { UserAdmin } from '../../services/user.service';
-import { adminListAllChallenges, adminDeleteChallenge, createChallenge } from '../../services/challenge.service';
+import { adminListAllChallenges, adminDeleteChallenge, createChallenge, adminUpdateChallenge } from '../../services/challenge.service';
 import type { ChallengeAdmin } from '../../services/challenge.service';
 import { adminListAllVehicles, adminDeleteVehicle } from '../../services/vehicle.service';
 import type { VehicleAdmin } from '../../services/vehicle.service';
@@ -35,6 +35,14 @@ export default function Admin() {
   const [newFecha, setNewFecha] = useState('');
   const [newNotas, setNewNotas] = useState('');
   const [creatingChallenge, setCreatingChallenge] = useState(false);
+  const [editingChallenge, setEditingChallenge] = useState<ChallengeAdmin | null>(null);
+  const [editChalTipo, setEditChalTipo] = useState('');
+  const [editChalLocationId, setEditChalLocationId] = useState('');
+  const [editChalFecha, setEditChalFecha] = useState('');
+  const [editChalNotas, setEditChalNotas] = useState('');
+  const [editChalEstado, setEditChalEstado] = useState('');
+  const [editChalGanadorId, setEditChalGanadorId] = useState('');
+  const [updatingChallenge, setUpdatingChallenge] = useState(false);
 
   const [locations, setLocations] = useState<RaceLocation[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
@@ -281,6 +289,51 @@ export default function Admin() {
       setError(err.response?.data?.error || 'Failed to apply configuration override');
     } finally {
       setUpdatingUser(false);
+    }
+  };
+
+  const handleEditChallengeClick = (ch: ChallengeAdmin) => {
+    setEditingChallenge(ch);
+    setEditChalTipo(ch.tipo_carrera || 'Drag');
+    setEditChalLocationId(ch.location_id || '');
+    let formattedDate = '';
+    if (ch.fecha_acordada) {
+      const d = new Date(ch.fecha_acordada);
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      formattedDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    setEditChalFecha(formattedDate);
+    setEditChalNotas(ch.notas || '');
+    setEditChalEstado(ch.estado || 'pendiente');
+    setEditChalGanadorId(ch.ganador_id || '');
+  };
+
+  const handleUpdateChallengeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingChallenge) return;
+    setUpdatingChallenge(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await adminUpdateChallenge(editingChallenge.id, {
+        tipo_carrera: editChalTipo,
+        location_id: editChalLocationId || null,
+        fecha_acordada: editChalFecha ? new Date(editChalFecha).toISOString() : null,
+        notas: editChalNotas,
+        estado: editChalEstado,
+        ganador_id: editChalGanadorId || null
+      });
+      if (res.success) {
+        setSuccessMessage('CHALLENGE RECORD UPDATED SUCCESSFULLY');
+        setEditingChallenge(null);
+        loadChallenges(challengePage, challengeSearch);
+      } else {
+        setError(res.error || 'Error updating challenge');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to apply challenge override');
+    } finally {
+      setUpdatingChallenge(false);
     }
   };
 
@@ -703,12 +756,20 @@ export default function Admin() {
                             </span>
                           </td>
                           <td className="p-3 text-right">
-                            <button
-                              onClick={() => handleDeleteChallengeClick(ch.id)}
-                              className="bg-transparent border border-error hover:bg-error/10 text-error font-bold px-3 py-1 text-[10px] skew-x-[-12deg] cursor-pointer"
-                            >
-                              <span className="skew-x-[12deg] block">ABORT</span>
-                            </button>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => handleEditChallengeClick(ch)}
+                                className="bg-transparent border border-secondary-container hover:bg-secondary-container/10 text-secondary-container font-bold px-3 py-1 text-[10px] skew-x-[-12deg] cursor-pointer"
+                              >
+                                <span className="skew-x-[12deg] block">EDITAR</span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteChallengeClick(ch.id)}
+                                className="bg-transparent border border-error hover:bg-error/10 text-error font-bold px-3 py-1 text-[10px] skew-x-[-12deg] cursor-pointer"
+                              >
+                                <span className="skew-x-[12deg] block">BORRAR</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -1022,6 +1083,139 @@ export default function Admin() {
                 >
                   <span className="skew-x-[12deg] block">
                     {updatingUser ? 'SAVING...' : 'APPLY'}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingChallenge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4">
+          <div className="bg-[#20201f] border border-outline-variant p-6 relative max-w-md w-full header-notch shadow-[0_0_24px_rgba(255,87,25,0.15)] font-mono my-8">
+            <div className="absolute top-0 left-0 w-2 h-full bg-[#ff5719]" />
+            <h3 className="text-[18px] italic font-black text-primary-container uppercase mb-4">
+              EDITAR RETO
+            </h3>
+            <form onSubmit={handleUpdateChallengeSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  MODALIDAD DE RETO
+                </label>
+                <select
+                  value={editChalTipo}
+                  onChange={(e) => setEditChalTipo(e.target.value)}
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
+                >
+                  <option value="Drag">DRAG (ACELERACIÓN)</option>
+                  <option value="Circuito">CIRCUITO</option>
+                  <option value="Sprint">SPRINT</option>
+                  <option value="Drift">DRIFT</option>
+                  <option value="cuarto_milla">1/4 MILLA</option>
+                  <option value="vueltas">VUELTAS</option>
+                  <option value="derrape">DERRAPE</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  UBICACIÓN ACORDADA
+                </label>
+                <select
+                  value={editChalLocationId}
+                  onChange={(e) => setEditChalLocationId(e.target.value)}
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
+                >
+                  <option value="">SIN PISTA ASOCIADA</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.nombre.toUpperCase()} ({loc.tipo})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  FECHA Y HORA ACORDADA
+                </label>
+                <CustomDateTimePicker
+                  value={editChalFecha}
+                  onChange={setEditChalFecha}
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  NOTAS / COMUNICADO OFICIAL
+                </label>
+                <textarea
+                  value={editChalNotas}
+                  onChange={(e) => setEditChalNotas(e.target.value)}
+                  placeholder="Stakes and rules..."
+                  rows={2}
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container resize-none"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  ESTADO DEL RETO
+                </label>
+                <select
+                  value={editChalEstado}
+                  onChange={(e) => setEditChalEstado(e.target.value)}
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
+                >
+                  <option value="pendiente">PENDIENTE</option>
+                  <option value="aceptado">ACEPTADO</option>
+                  <option value="rechazado">RECHAZADO</option>
+                  <option value="cancelado">CANCELADO</option>
+                  <option value="en_curso">EN CURSO</option>
+                  <option value="completado">COMPLETADO</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  GANADOR DEL RETO
+                </label>
+                <select
+                  value={editChalGanadorId}
+                  onChange={(e) => setEditChalGanadorId(e.target.value)}
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
+                >
+                  <option value="">NINGUNO (SIN DEFINIR / EN CURSO)</option>
+                  {editingChallenge.retador && (
+                    <option value={editingChallenge.retador_id || ''}>
+                      {editingChallenge.retador.username.toUpperCase()} (RETADOR)
+                    </option>
+                  )}
+                  {editingChallenge.retado && (
+                    <option value={editingChallenge.retado_id || ''}>
+                      {editingChallenge.retado.username.toUpperCase()} (RETADO)
+                    </option>
+                  )}
+                </select>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingChallenge(null)}
+                  className="bg-transparent border border-error hover:bg-error/10 text-error font-bold px-4 py-2 text-[11px] skew-x-[-12deg] cursor-pointer"
+                >
+                  <span className="skew-x-[12deg] block">CANCELAR</span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingChallenge}
+                  className="bg-primary-container text-on-primary-container font-bold px-5 py-2 text-[11px] skew-x-[-12deg] hover:bg-primary cursor-pointer disabled:opacity-50"
+                >
+                  <span className="skew-x-[12deg] block">
+                    {updatingChallenge ? 'GUARDANDO...' : 'APLICAR'}
                   </span>
                 </button>
               </div>
