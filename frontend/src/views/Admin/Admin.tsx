@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { listAllUsers, adminUpdateUser, adminDeleteUser } from '../../services/user.service';
 import type { UserAdmin } from '../../services/user.service';
-import { adminListAllChallenges, adminDeleteChallenge } from '../../services/challenge.service';
+import { adminListAllChallenges, adminDeleteChallenge, createChallenge } from '../../services/challenge.service';
 import type { ChallengeAdmin } from '../../services/challenge.service';
 import { adminListAllVehicles, adminDeleteVehicle } from '../../services/vehicle.service';
 import type { VehicleAdmin } from '../../services/vehicle.service';
@@ -25,6 +25,13 @@ export default function Admin() {
   const [challengesLoading, setChallengesLoading] = useState(false);
   const [challengeSearch, setChallengeSearch] = useState('');
   const [challengeSearchInput, setChallengeSearchInput] = useState('');
+
+  const [showCreateChallengeModal, setShowCreateChallengeModal] = useState(false);
+  const [newTipoCarrera, setNewTipoCarrera] = useState('Drag');
+  const [newUbicacion, setNewUbicacion] = useState('');
+  const [newFecha, setNewFecha] = useState('');
+  const [newNotas, setNewNotas] = useState('');
+  const [creatingChallenge, setCreatingChallenge] = useState(false);
 
   const [vehicles, setVehicles] = useState<VehicleAdmin[]>([]);
   const [vehiclePage, setVehiclePage] = useState(1);
@@ -90,6 +97,41 @@ export default function Admin() {
       setError(err.response?.data?.error || 'Failed to load vehicles console');
     } finally {
       setVehiclesLoading(false);
+    }
+  };
+
+  const handleOpenCreateChallenge = () => {
+    setShowCreateChallengeModal(true);
+    setError(null);
+    setSuccessMessage(null);
+  };
+
+  const handleCreateChallengeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingChallenge(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await createChallenge({
+        tipo_carrera: newTipoCarrera,
+        ubicacion_acordada: newUbicacion,
+        fecha_acordada: newFecha ? new Date(newFecha).toISOString() : null,
+        notas: newNotas || undefined
+      });
+      if (res.success) {
+        setSuccessMessage('CHALLENGE CONFIGURATION DEPLOYED SUCCESSFULLY');
+        setShowCreateChallengeModal(false);
+        setNewUbicacion('');
+        setNewFecha('');
+        setNewNotas('');
+        loadChallenges(challengePage, challengeSearch);
+      } else {
+        setError(res.error || 'Error creating challenge');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to inject challenge sequence');
+    } finally {
+      setCreatingChallenge(false);
     }
   };
 
@@ -394,9 +436,20 @@ export default function Admin() {
         {activeTab === 'retos' && (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-              <h3 className="text-[16px] italic font-black text-on-surface uppercase font-mono">
-                REGISTRY: RETOS GLOBAL
-              </h3>
+              <div className="flex items-center gap-4">
+                <h3 className="text-[16px] italic font-black text-on-surface uppercase font-mono">
+                  REGISTRY: RETOS GLOBAL
+                </h3>
+                <button
+                  onClick={handleOpenCreateChallenge}
+                  className="flex items-center justify-center gap-1.5 bg-[#ff5719] hover:bg-[#ff5719]/80 text-[#521300] font-mono text-[10px] font-bold uppercase py-1.5 px-4 skew-x-[-12deg] transition-all cursor-pointer relative overflow-hidden group select-none"
+                >
+                  <span className="skew-x-[12deg] flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">add</span>
+                    CREAR RETO
+                  </span>
+                </button>
+              </div>
               <form onSubmit={handleChallengeSearchSubmit} className="flex gap-2 font-mono">
                 <input
                   type="text"
@@ -449,21 +502,25 @@ export default function Admin() {
                           <td className="p-3">
                             <div className="flex flex-col">
                               <span className="font-bold text-on-surface uppercase">
-                                {ch.retador?.username}
+                                {ch.retador?.username || 'DISPONIBLE'}
                               </span>
-                              <span className="text-[10px] text-on-surface-variant uppercase">
-                                {ch.vehiculo_retador?.marca} {ch.vehiculo_retador?.modelo}
-                              </span>
+                              {ch.vehiculo_retador && (
+                                <span className="text-[10px] text-on-surface-variant uppercase">
+                                  {ch.vehiculo_retador.marca} {ch.vehiculo_retador.modelo}
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="p-3">
                             <div className="flex flex-col">
                               <span className="font-bold text-on-surface uppercase">
-                                {ch.retado?.username}
+                                {ch.retado?.username || 'DISPONIBLE'}
                               </span>
-                              <span className="text-[10px] text-on-surface-variant uppercase">
-                                {ch.vehiculo_retado?.marca} {ch.vehiculo_retado?.modelo}
-                              </span>
+                              {ch.vehiculo_retado && (
+                                <span className="text-[10px] text-on-surface-variant uppercase">
+                                  {ch.vehiculo_retado.marca} {ch.vehiculo_retado.modelo}
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="p-3 uppercase text-on-surface">{ch.tipo_carrera}</td>
@@ -729,6 +786,93 @@ export default function Admin() {
                 >
                   <span className="skew-x-[12deg] block">
                     {updatingUser ? 'SAVING...' : 'APPLY'}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showCreateChallengeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#20201f] border border-outline-variant p-6 relative max-w-md w-full header-notch shadow-[0_0_24px_rgba(255,87,25,0.15)] font-mono">
+            <div className="absolute top-0 left-0 w-2 h-full bg-[#ff5719]" />
+            <h3 className="text-[18px] italic font-black text-primary-container uppercase mb-4">
+              CREAR RETO ADMINISTRATIVO
+            </h3>
+            <form onSubmit={handleCreateChallengeSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  MODALIDAD DE RETO (RACE CLASS)
+                </label>
+                <select
+                  value={newTipoCarrera}
+                  onChange={(e) => setNewTipoCarrera(e.target.value)}
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
+                >
+                  <option value="Drag">DRAG (ACELERACIÓN)</option>
+                  <option value="Circuito">CIRCUITO</option>
+                  <option value="Sprint">SPRINT</option>
+                  <option value="Drift">DRIFT</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  UBICACIÓN ACORDADA (SECTOR)
+                </label>
+                <input
+                  type="text"
+                  value={newUbicacion}
+                  onChange={(e) => setNewUbicacion(e.target.value)}
+                  required
+                  placeholder="e.g. Sector 7, Muelle Central"
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  FECHA Y HORA ACORDADA
+                </label>
+                <input
+                  type="datetime-local"
+                  value={newFecha}
+                  onChange={(e) => setNewFecha(e.target.value)}
+                  required
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-on-surface-variant uppercase">
+                  NOTAS / COMUNICADO OFICIAL
+                </label>
+                <textarea
+                  value={newNotas}
+                  onChange={(e) => setNewNotas(e.target.value)}
+                  placeholder="Stakes and rules guidelines..."
+                  rows={2}
+                  className="bg-[#131313] border border-outline-variant text-[13px] text-on-surface p-2.5 outline-none focus:border-primary-container resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateChallengeModal(false)}
+                  className="bg-transparent border border-error hover:bg-error/10 text-error font-bold px-4 py-2 text-[11px] skew-x-[-12deg] cursor-pointer"
+                >
+                  <span className="skew-x-[12deg] block">CANCEL</span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingChallenge}
+                  className="bg-primary-container text-on-primary-container font-bold px-5 py-2 text-[11px] skew-x-[-12deg] hover:bg-primary cursor-pointer disabled:opacity-50"
+                >
+                  <span className="skew-x-[12deg] block">
+                    {creatingChallenge ? 'INJECTING...' : 'DEPLOY'}
                   </span>
                 </button>
               </div>

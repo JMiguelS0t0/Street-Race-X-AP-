@@ -75,10 +75,10 @@ model Vehicle {
 
 model Challenge {
   id                  String    @id @default(dbgenerated("newid()")) @db.UniqueIdentifier
-  retador_id          String    @db.UniqueIdentifier
-  retado_id           String    @db.UniqueIdentifier
-  vehiculo_retador_id String    @db.UniqueIdentifier
-  vehiculo_retado_id  String    @db.UniqueIdentifier
+  retador_id          String?   @db.UniqueIdentifier
+  retado_id           String?   @db.UniqueIdentifier
+  vehiculo_retador_id String?   @db.UniqueIdentifier
+  vehiculo_retado_id  String?   @db.UniqueIdentifier
   tipo_carrera        String?   @db.NVarChar(50)
   estado              String?   @default("pendiente") @db.NVarChar(20)
   ganador_id          String?   @db.UniqueIdentifier
@@ -88,10 +88,10 @@ model Challenge {
   created_at          DateTime? @default(now()) @db.DateTime2
   updated_at          DateTime? @default(now()) @db.DateTime2
 
-  retador             User      @relation("Retador", fields: [retador_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  retado              User      @relation("Retado", fields: [retado_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  vehiculo_retador    Vehicle   @relation("VehiculoRetador", fields: [vehiculo_retador_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  vehiculo_retado     Vehicle   @relation("VehiculoRetado", fields: [vehiculo_retado_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  retador             User?     @relation("Retador", fields: [retador_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  retado              User?     @relation("Retado", fields: [retado_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  vehiculo_retador    Vehicle?  @relation("VehiculoRetador", fields: [vehiculo_retador_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  vehiculo_retado     Vehicle?  @relation("VehiculoRetado", fields: [vehiculo_retado_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
   ganador             User?     @relation("Ganador", fields: [ganador_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
 
   @@map("challenges")

@@ -7,46 +7,63 @@ import { processChallengeCompletion } from '../services/challenge.service';
 import { asyncHandler } from '../utils/asyncHandler';
 
 export const createChallenge = asyncHandler(async (req: Request, res: Response) => {
-  const authReq = req as AuthenticatedRequest;
-  const { retado_id, tipo_carrera, ubicacion_acordada, fecha_acordada, notas } = req.body;
-  const retador_id = authReq.user.id;
+  const { retador_id, retado_id, tipo_carrera, ubicacion_acordada, fecha_acordada, notas } = req.body;
 
-  if (retador_id === retado_id) {
-    return sendError(res, 'No puedes retarte a ti mismo', 400);
-  }
+  let retador = null;
+  let retado = null;
 
-  const retador = await prisma.user.findUnique({
-    where: { id: retador_id },
-    include: { vehicles: { where: { activo: true } } }
-  });
+  if (retador_id && retado_id) {
+    if (retador_id === retado_id) {
+      return sendError(res, 'No puedes retar al mismo piloto', 400);
+    }
 
-  const retado = await prisma.user.findUnique({
-    where: { id: retado_id },
-    include: { vehicles: { where: { activo: true } } }
-  });
+    retador = await prisma.user.findUnique({
+      where: { id: retador_id },
+      include: { vehicles: { where: { activo: true, tipo_vehiculo: { not: 'DELETED' } } } }
+    });
 
-  if (!retador || retador.vehicles.length === 0) {
-    return sendError(res, 'Debes tener un vehículo activo para retar', 400);
-  }
+    retado = await prisma.user.findUnique({
+      where: { id: retado_id },
+      include: { vehicles: { where: { activo: true, tipo_vehiculo: { not: 'DELETED' } } } }
+    });
 
-  if (!retado || retado.vehicles.length === 0) {
-    return sendError(res, 'El piloto retado no tiene un vehículo activo', 400);
-  }
+    if (!retador || retador.vehicles.length === 0) {
+      return sendError(res, 'El retador debe tener un vehículo activo', 400);
+    }
 
-  if (retador.rango !== retado.rango) {
-    return sendError(res, 'Solo puedes retar a pilotos de tu mismo rango', 400);
-  }
+    if (!retado || retado.vehicles.length === 0) {
+      return sendError(res, 'El piloto retado no tiene un vehículo activo', 400);
+    }
 
-  if (retador.vehicles[0].tipo_vehiculo !== retado.vehicles[0].tipo_vehiculo) {
-    return sendError(res, 'Los vehículos activos deben ser del mismo tipo (ej: Auto vs Auto)', 400);
+    if (retador.rango !== retado.rango) {
+      return sendError(res, 'Solo se pueden retar pilots del mismo rango', 400);
+    }
+
+    if (retador.vehicles[0].tipo_vehiculo !== retado.vehicles[0].tipo_vehiculo) {
+      return sendError(res, 'Los vehículos activos deben ser del mismo tipo (ej: Auto vs Auto)', 400);
+    }
+  } else if (retador_id || retado_id) {
+    const pilotId = retador_id || retado_id;
+    const pilot = await prisma.user.findUnique({
+      where: { id: pilotId },
+      include: { vehicles: { where: { activo: true, tipo_vehiculo: { not: 'DELETED' } } } }
+    });
+    if (!pilot || pilot.vehicles.length === 0) {
+      return sendError(res, 'El piloto debe tener un vehículo activo', 400);
+    }
+    if (retador_id) {
+      retador = pilot;
+    } else {
+      retado = pilot;
+    }
   }
 
   const challenge = await prisma.challenge.create({
     data: {
-      retador_id,
-      retado_id,
-      vehiculo_retador_id: retador.vehicles[0].id,
-      vehiculo_retado_id: retado.vehicles[0].id,
+      retador_id: retador ? retador.id : null,
+      retado_id: retado ? retado.id : null,
+      vehiculo_retador_id: retador && retador.vehicles.length > 0 ? retador.vehicles[0].id : null,
+      vehiculo_retado_id: retado && retado.vehicles.length > 0 ? retado.vehicles[0].id : null,
       tipo_carrera,
       ubicacion_acordada,
       fecha_acordada: fecha_acordada ? new Date(fecha_acordada) : null,
@@ -55,16 +72,38 @@ export const createChallenge = asyncHandler(async (req: Request, res: Response) 
     }
   });
 
-  await prisma.notification.create({
-    data: {
-      user_id: retado_id,
-      tipo: 'reto_recibido',
-      mensaje: `${retador.username} te ha enviado un reto de ${tipo_carrera}`,
-      referencia_id: challenge.id
+  if (retador && retado) {
+    await prisma.notification.createMany({
+      data: [
+        {
+          user_id: retado.id,
+          tipo: 'reto_recibido',
+          mensaje: `${retador.username} te ha enviado un reto de ${tipo_carrera}`,
+          referencia_id: challenge.id
+        },
+        {
+          user_id: retador.id,
+          tipo: 'reto_recibido',
+          mensaje: `Se ha programado un reto de ${tipo_carrera} contra ${retado.username}`,
+          referencia_id: challenge.id
+        }
+      ]
+    });
+  } else if (retador || retado) {
+    const activePilot = retador || retado;
+    if (activePilot) {
+      await prisma.notification.create({
+        data: {
+          user_id: activePilot.id,
+          tipo: 'reto_recibido',
+          mensaje: `Se ha publicado tu reto de ${tipo_carrera}`,
+          referencia_id: challenge.id
+        }
+      });
     }
-  });
+  }
 
-  sendSuccess(res, challenge, 'Reto enviado exitosamente', 201);
+  sendSuccess(res, challenge, 'Reto creado exitosamente', 201);
 });
 
 export const completeChallenge = asyncHandler(async (req: Request, res: Response) => {
@@ -101,12 +140,28 @@ export const listChallenges = asyncHandler(async (req: Request, res: Response) =
 
   const estadoFilter = req.query.estado as string;
   const tipoCarreraFilter = req.query.tipo_carrera as string;
+  const disponibles = req.query.disponibles === 'true';
 
-  const whereClause: any = {
-    OR: [{ retador_id: authReq.user.id }, { retado_id: authReq.user.id }]
-  };
+  let whereClause: any;
+  if (disponibles) {
+    whereClause = {
+      estado: 'pendiente',
+      OR: [
+        { retador_id: null },
+        { retado_id: null }
+      ],
+      NOT: [
+        { retador_id: authReq.user.id },
+        { retado_id: authReq.user.id }
+      ]
+    };
+  } else {
+    whereClause = {
+      OR: [{ retador_id: authReq.user.id }, { retado_id: authReq.user.id }]
+    };
+  }
 
-  if (estadoFilter) {
+  if (estadoFilter && !disponibles) {
     whereClause.estado = estadoFilter;
   }
   if (tipoCarreraFilter) {
@@ -149,7 +204,109 @@ export const getChallengeDetail = asyncHandler(async (req: Request, res: Respons
 export const updateChallenge = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const id = req.params.id as string;
-  const { estado, ganador_id } = req.body;
+  const { action, estado, ganador_id } = req.body;
+
+  if (action === 'unirse' || estado === 'unirse') {
+    const challenge = await prisma.challenge.findUnique({
+      where: { id },
+      include: {
+        retador: true,
+        retado: true,
+        vehiculo_retador: true,
+        vehiculo_retado: true
+      }
+    });
+
+    if (!challenge) {
+      return sendNotFound(res, 'Reto');
+    }
+
+    const userId = authReq.user.id;
+    if (challenge.retador_id === userId || challenge.retado_id === userId) {
+      return sendError(res, 'Ya formas parte de este reto', 400);
+    }
+
+    const joiningUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { vehicles: { where: { activo: true, tipo_vehiculo: { not: 'DELETED' } } } }
+    });
+
+    if (!joiningUser || joiningUser.vehicles.length === 0) {
+      return sendError(res, 'Debes tener un vehículo activo para unirte al reto', 400);
+    }
+
+    const activeVehicle = joiningUser.vehicles[0];
+    let updateData: any = {};
+
+    if (!challenge.retador_id && !challenge.retado_id) {
+      updateData = {
+        retador_id: userId,
+        vehiculo_retador_id: activeVehicle.id
+      };
+    } else if (challenge.retador_id && !challenge.retado_id) {
+      if (challenge.retador?.rango !== joiningUser.rango) {
+        return sendError(res, 'Solo se pueden unir pilotos del mismo rango', 400);
+      }
+      if (challenge.vehiculo_retador?.tipo_vehiculo !== activeVehicle.tipo_vehiculo) {
+        return sendError(res, 'Los vehículos deben ser del mismo tipo (ej: Auto vs Auto)', 400);
+      }
+      updateData = {
+        retado_id: userId,
+        vehiculo_retado_id: activeVehicle.id,
+        estado: 'aceptado'
+      };
+    } else if (!challenge.retador_id && challenge.retado_id) {
+      if (challenge.retado?.rango !== joiningUser.rango) {
+        return sendError(res, 'Solo se pueden unir pilotos del mismo rango', 400);
+      }
+      if (challenge.vehiculo_retado?.tipo_vehiculo !== activeVehicle.tipo_vehiculo) {
+        return sendError(res, 'Los vehículos deben ser del mismo tipo (ej: Auto vs Auto)', 400);
+      }
+      updateData = {
+        retador_id: userId,
+        vehiculo_retador_id: activeVehicle.id,
+        estado: 'aceptado'
+      };
+    } else {
+      return sendError(res, 'El reto ya está lleno', 400);
+    }
+
+    const updated = await prisma.challenge.update({
+      where: { id },
+      data: {
+        ...updateData,
+        updated_at: new Date()
+      },
+      include: {
+        retador: { select: { username: true, rango: true } },
+        retado: { select: { username: true, rango: true } },
+        vehiculo_retador: { select: { marca: true, modelo: true } },
+        vehiculo_retado: { select: { marca: true, modelo: true } }
+      }
+    });
+
+    if (updateData.retador_id && challenge.retado_id) {
+      await prisma.notification.create({
+        data: {
+          user_id: challenge.retado_id,
+          tipo: 'reto_aceptado',
+          mensaje: `${joiningUser.username} se ha unido a tu reto`,
+          referencia_id: id
+        }
+      });
+    } else if (updateData.retado_id && challenge.retador_id) {
+      await prisma.notification.create({
+        data: {
+          user_id: challenge.retador_id,
+          tipo: 'reto_aceptado',
+          mensaje: `${joiningUser.username} se ha unido a tu reto`,
+          referencia_id: id
+        }
+      });
+    }
+
+    return sendSuccess(res, updated, 'Te has unido al reto exitosamente');
+  }
 
   const ALLOWED_STATES = ['aceptado', 'rechazado', 'cancelado', 'en_curso', 'completado'];
   if (!estado || !ALLOWED_STATES.includes(estado)) {
@@ -210,14 +367,16 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
     const isRetadorWinner = ganador_id === challenge.retador_id;
     const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
 
-    await processChallengeCompletion({
-      challengeId: id,
-      ganadorId: ganador_id,
-      perdedorId: perdedor_id,
-      retadorUsername: challenge.retador.username,
-      retadoUsername: challenge.retado.username,
-      isRetadorWinner
-    });
+    if (challenge.retador && challenge.retado) {
+      await processChallengeCompletion({
+        challengeId: id,
+        ganadorId: ganador_id,
+        perdedorId: perdedor_id,
+        retadorUsername: challenge.retador.username,
+        retadoUsername: challenge.retado.username,
+        isRetadorWinner
+      });
+    }
 
     return sendSuccess(res, undefined, 'Reto completado y estadísticas actualizadas');
   }
@@ -227,7 +386,7 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
     data: { estado, updated_at: new Date() }
   });
 
-  const notificationMap: Record<string, { userId: string; tipo: string; mensaje: string }> = {
+  const notificationMap: Record<string, { userId: string | null; tipo: string; mensaje: string }> = {
     aceptado:  { userId: challenge.retador_id, tipo: 'reto_aceptado',  mensaje: 'El reto ha sido aceptado' },
     rechazado: { userId: challenge.retador_id, tipo: 'reto_rechazado', mensaje: 'El reto ha sido rechazado' },
     cancelado: { userId: challenge.retado_id,  tipo: 'reto_cancelado', mensaje: 'El reto ha sido cancelado' },
@@ -235,7 +394,7 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
   };
 
   const notif = notificationMap[estado];
-  if (notif) {
+  if (notif && notif.userId) {
     await prisma.notification.create({
       data: { user_id: notif.userId, tipo: notif.tipo, mensaje: notif.mensaje }
     });

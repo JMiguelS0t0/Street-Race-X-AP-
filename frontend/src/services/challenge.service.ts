@@ -1,7 +1,8 @@
 import api from './api';
 
 export interface ChallengeCreateParams {
-  retado_id: string;
+  retador_id?: string | null;
+  retado_id?: string | null;
   tipo_carrera: string;
   ubicacion_acordada: string;
   fecha_acordada?: string | null;
@@ -10,10 +11,10 @@ export interface ChallengeCreateParams {
 
 export interface Challenge {
   id: string;
-  retador_id: string;
-  retado_id: string;
-  vehiculo_retador_id: string;
-  vehiculo_retado_id: string;
+  retador_id: string | null;
+  retado_id: string | null;
+  vehiculo_retador_id: string | null;
+  vehiculo_retado_id: string | null;
   tipo_carrera: string | null;
   estado: string | null;
   ubicacion_acordada: string | null;
@@ -22,10 +23,10 @@ export interface Challenge {
   ganador_id: string | null;
   created_at: string | null;
   updated_at: string | null;
-  retador?: { username: string; rango: string };
-  retado?: { username: string; rango: string };
-  vehiculo_retador?: { marca: string; modelo: string };
-  vehiculo_retado?: { marca: string; modelo: string };
+  retador?: { username: string; rango: string } | null;
+  retado?: { username: string; rango: string } | null;
+  vehiculo_retador?: { marca: string; modelo: string } | null;
+  vehiculo_retado?: { marca: string; modelo: string } | null;
 }
 
 export interface ChallengeResponse {
@@ -71,18 +72,19 @@ export const createChallenge = async (data: ChallengeCreateParams): Promise<Chal
   return response.data;
 };
 
-export const listChallenges = async (params?: { page?: number; limit?: number; estado?: string; tipo_carrera?: string }): Promise<ChallengeListResponse> => {
+export const listChallenges = async (params?: { page?: number; limit?: number; estado?: string; tipo_carrera?: string; disponibles?: boolean }): Promise<ChallengeListResponse> => {
   const queryParams = new URLSearchParams();
   if (params?.page) queryParams.append('page', params.page.toString());
   if (params?.limit) queryParams.append('limit', params.limit.toString());
   if (params?.estado) queryParams.append('estado', params.estado);
   if (params?.tipo_carrera) queryParams.append('tipo_carrera', params.tipo_carrera);
+  if (params?.disponibles !== undefined) queryParams.append('disponibles', params.disponibles.toString());
 
   const response = await api.get<ChallengeListResponse>(`/challenges?${queryParams.toString()}`);
   return response.data;
 };
 
-export const updateChallenge = async (id: string, data: { estado: string; ganador_id?: string }): Promise<ChallengeResponse> => {
+export const updateChallenge = async (id: string, data: { estado: string; ganador_id?: string; action?: string }): Promise<ChallengeResponse> => {
   const response = await api.patch<ChallengeResponse>(`/challenges/${id}`, data);
   return response.data;
 };
@@ -93,10 +95,10 @@ export const getGlobalHistory = async (): Promise<GlobalHistoryResponse> => {
 };
 
 export interface ChallengeAdmin extends Challenge {
-  retador: { id: string; username: string; rango: string };
-  retado: { id: string; username: string; rango: string };
-  vehiculo_retador: { id: string; marca: string; modelo: string };
-  vehiculo_retado: { id: string; marca: string; modelo: string };
+  retador?: { id: string; username: string; rango: string } | null;
+  retado?: { id: string; username: string; rango: string } | null;
+  vehiculo_retador?: { id: string; marca: string; modelo: string } | null;
+  vehiculo_retado?: { id: string; marca: string; modelo: string } | null;
 }
 
 export interface ListChallengesAdminResponse {

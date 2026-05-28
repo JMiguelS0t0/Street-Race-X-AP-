@@ -140,7 +140,7 @@ router.get('/', listChallenges);
  *       500:
  *         $ref: '#/components/responses/InternalError'
  */
-router.post('/', createChallenge);
+router.post('/', adminMiddleware, createChallenge);
 
 /**
  * @swagger

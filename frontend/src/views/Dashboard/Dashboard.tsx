@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { discoverPilots } from '../../services/discover.service';
-import { createChallenge } from '../../services/challenge.service';
 import { createRoom } from '../../services/chat.service';
 import type { Pilot } from '../../services/discover.service';
 
@@ -36,20 +35,11 @@ export default function Dashboard({ onSwitchView, onSwitchViewWithRoom }: Dashbo
     }
   };
   const [error, setError] = useState<string | null>(null);
-  const [noActiveVehicle, setNoActiveVehicle] = useState(false);
 
+  const [noActiveVehicle, setNoActiveVehicle] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [ciudadFilter, setCiudadFilter] = useState('');
   const [tipoVehiculoFilter, setTipoVehiculoFilter] = useState('');
-
-  const [selectedRival, setSelectedRival] = useState<Pilot | null>(null);
-  const [showRetoModal, setShowRetoModal] = useState(false);
-  const [tipoCarrera, setTipoCarrera] = useState('Drag');
-  const [ubicacionAcordada, setUbicacionAcordada] = useState('');
-  const [fechaAcordada, setFechaAcordada] = useState('');
-  const [notas, setNotas] = useState('');
-  const [submittingReto, setSubmittingReto] = useState(false);
-  const [retoAlert, setRetoAlert] = useState<{ success: boolean; message: string } | null>(null);
 
   const fetchDiscover = async () => {
     setLoading(true);
@@ -82,50 +72,6 @@ export default function Dashboard({ onSwitchView, onSwitchViewWithRoom }: Dashbo
   useEffect(() => {
     fetchDiscover();
   }, [ciudadFilter, tipoVehiculoFilter]);
-
-  const handleRetoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedRival) return;
-    setSubmittingReto(true);
-    setRetoAlert(null);
-
-    try {
-      const res = await createChallenge({
-        retado_id: selectedRival.id,
-        tipo_carrera: tipoCarrera,
-        ubicacion_acordada: ubicacionAcordada,
-        fecha_acordada: fechaAcordada ? new Date(fechaAcordada).toISOString() : null,
-        notas: notas || undefined
-      });
-
-      if (res.success) {
-        setRetoAlert({
-          success: true,
-          message: `CHALLENGE TRANSMITTED SUCCESSFULLY TO ${selectedRival.username.toUpperCase()}`
-        });
-        setTimeout(() => {
-          setShowRetoModal(false);
-          setSelectedRival(null);
-          setRetoAlert(null);
-          setUbicacionAcordada('');
-          setFechaAcordada('');
-          setNotas('');
-        }, 2500);
-      } else {
-        setRetoAlert({
-          success: false,
-          message: res.error || 'ERROR IN TRANSMISSION'
-        });
-      }
-    } catch (err: any) {
-      setRetoAlert({
-        success: false,
-        message: err.response?.data?.error || 'TRANSMISSION LINK FAILED'
-      });
-    } finally {
-      setSubmittingReto(false);
-    }
-  };
 
   const getPilotStats = (id: string) => {
     let hash = 0;
@@ -354,21 +300,12 @@ export default function Dashboard({ onSwitchView, onSwitchViewWithRoom }: Dashbo
 
                     <div className="flex w-full mt-auto">
                       <button 
-                        onClick={() => {
-                          setSelectedRival(pilot);
-                          setShowRetoModal(true);
-                        }}
-                        className="flex-1 bg-[#ff5719] hover:bg-[#ff5719]/80 text-[#521300] py-3 transition-colors flex justify-center items-center gap-2 group/btn cursor-pointer font-bold"
+                        onClick={() => handleStartChat(pilot.id)}
+                        className="flex-grow bg-secondary-container hover:bg-secondary-fixed text-on-secondary py-3 flex justify-center items-center gap-2 cursor-pointer font-bold"
                         style={{ fontFamily: '"Anybody", sans-serif' }}
                       >
-                        <span className="skew-x-[-12deg] group-hover/btn:skew-x-[-18deg] transition-transform text-[16px] italic">RETO</span>
-                        <span className="material-symbols-outlined text-[18px]">keyboard_double_arrow_right</span>
-                      </button>
-                      <button 
-                        onClick={() => handleStartChat(pilot.id)}
-                        className="w-16 bg-secondary-container hover:bg-secondary-fixed text-on-secondary py-3 border-l border-outline-variant/30 flex justify-center items-center cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-[20px]">chat</span>
+                        <span className="skew-x-[-12deg] text-[12px] italic uppercase tracking-wider">CHALLENGER COMMUNICATIONS</span>
+                        <span className="material-symbols-outlined text-[18px]">chat</span>
                       </button>
                     </div>
                   </article>
@@ -379,128 +316,6 @@ export default function Dashboard({ onSwitchView, onSwitchViewWithRoom }: Dashbo
         </>
       )}
 
-      {showRetoModal && selectedRival && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div 
-            className="relative w-full max-w-lg bg-[#20201f] border border-outline-variant p-6 shadow-2xl skew-x-[-1deg]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="absolute top-0 left-0 w-2 h-full bg-[#ff5719]" />
-            <div className="absolute top-[-2px] right-[-2px] w-4 h-4 border-t-2 border-r-2 border-secondary-container" />
-
-            <div className="skew-x-[1deg] flex flex-col gap-4">
-              <div className="flex justify-between items-start border-b border-outline-variant/30 pb-3">
-                <div>
-                  <h3 
-                    className="text-[20px] italic font-black text-[#ff5719] uppercase tracking-tight"
-                    style={{ fontFamily: '"Anybody", sans-serif' }}
-                  >
-                    INITIATE CHALLENGE SEQUENCE
-                  </h3>
-                  <p className="text-[10px] text-secondary-container font-mono font-bold uppercase mt-1">
-                    TARGET PILOT: {selectedRival.username}
-                  </p>
-                </div>
-                <button 
-                  onClick={() => {
-                    setShowRetoModal(false);
-                    setSelectedRival(null);
-                    setRetoAlert(null);
-                  }}
-                  className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
-                >
-                  close
-                </button>
-              </div>
-
-              {retoAlert && (
-                <div 
-                  className={`p-3 font-mono text-[13px] border ${
-                    retoAlert.success 
-                      ? 'border-tertiary bg-tertiary/10 text-tertiary-fixed' 
-                      : 'border-error bg-error/10 text-error'
-                  }`}
-                >
-                  <span className="font-bold">SYSTEM MESSAGE:</span> {retoAlert.message}
-                </div>
-              )}
-
-              <form onSubmit={handleRetoSubmit} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-mono font-bold text-on-surface-variant uppercase">RACE TYPE</label>
-                  <select 
-                    value={tipoCarrera}
-                    onChange={(e) => setTipoCarrera(e.target.value)}
-                    className="bg-[#131313] border border-outline-variant text-[14px] text-on-surface font-mono p-2.5 outline-none focus:border-secondary-container transition-colors"
-                  >
-                    <option value="Drag">DRAG (ACELERACIÓN)</option>
-                    <option value="Circuito">CIRCUITO</option>
-                    <option value="Sprint">SPRINT</option>
-                    <option value="Drift">DRIFT</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-mono font-bold text-on-surface-variant uppercase">AGREED LOCATION</label>
-                  <input 
-                    type="text" 
-                    value={ubicacionAcordada}
-                    onChange={(e) => setUbicacionAcordada(e.target.value)}
-                    required
-                    placeholder="e.g. Sector 7, Puente Metropolitano"
-                    className="bg-[#131313] border border-outline-variant text-[14px] text-on-surface font-mono p-2.5 outline-none focus:border-secondary-container transition-colors"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-mono font-bold text-on-surface-variant uppercase">AGREED TIME / DATE</label>
-                  <input 
-                    type="datetime-local" 
-                    value={fechaAcordada}
-                    onChange={(e) => setFechaAcordada(e.target.value)}
-                    required
-                    className="bg-[#131313] border border-outline-variant text-[14px] text-on-surface font-mono p-2.5 outline-none focus:border-secondary-container transition-colors"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-mono font-bold text-on-surface-variant uppercase">COMMS NOTES / INSTRUCTIONS</label>
-                  <textarea 
-                    value={notas}
-                    onChange={(e) => setNotas(e.target.value)}
-                    placeholder="e.g. Bring your hypercar clean. Stakes are high."
-                    rows={3}
-                    className="bg-[#131313] border border-outline-variant text-[14px] text-on-surface font-mono p-2.5 outline-none focus:border-secondary-container transition-colors resize-none"
-                  />
-                </div>
-
-                <div className="flex gap-3 justify-end mt-2">
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setShowRetoModal(false);
-                      setSelectedRival(null);
-                      setRetoAlert(null);
-                    }}
-                    className="bg-surface-container-high hover:bg-surface-variant text-on-surface font-mono text-[12px] font-bold px-5 py-3 skew-x-[-8deg] transition-all cursor-pointer"
-                  >
-                    <span className="skew-x-[8deg] block">ABORT</span>
-                  </button>
-                  <button 
-                    type="submit"
-                    disabled={submittingReto}
-                    className="bg-[#ff5719] hover:bg-[#ff5719]/80 text-[#521300] font-mono text-[12px] font-bold px-6 py-3 skew-x-[-8deg] glow-primary transition-all cursor-pointer flex items-center gap-2"
-                  >
-                    <span className="skew-x-[8deg] block">
-                      {submittingReto ? 'TRANSMITTING...' : 'SEND CHALLENGE'}
-                    </span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

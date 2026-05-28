@@ -17,7 +17,7 @@ const DEFAULT_CAR_IMAGES = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDb-LXA6GWHqcFYgsqQC44hywb8qA7T8X-aLiFaDEaj4ucrgvZcGaGUsqYo7-OpfqnNs8pUlOfE7ZEU3XF-5gHLFCRBD2JUnyNQxti6tDQzzTz-RF0XPasiX-0FwEHqKZU-H55sGcSqOJ0zUJZSbY6d93KrXH1TrQD12oRHRG6n3tvMeeqavZx_ZDqN0iDkMDthjE0eL0QEC8pm8N9Cwc56GCBagkqwC-0obTi9wjXSn9_QLBieSIB70p3EAUlsFQ13E6IMcn5IV4_j'
 ];
 
-type TabType = 'pendientes' | 'activos' | 'completados' | 'leaderboard';
+type TabType = 'pendientes' | 'abiertos' | 'activos' | 'completados' | 'leaderboard';
 
 export default function Retos() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -55,11 +55,19 @@ export default function Retos() {
         }
       } else {
         let estadoFilter = '';
-        if (tab === 'pendientes') estadoFilter = 'pendiente';
-        else if (tab === 'activos') estadoFilter = 'aceptado';
-        else if (tab === 'completados') estadoFilter = 'completado';
+        let disponibles = false;
+        if (tab === 'pendientes') {
+          estadoFilter = 'pendiente';
+        } else if (tab === 'abiertos') {
+          estadoFilter = 'pendiente';
+          disponibles = true;
+        } else if (tab === 'activos') {
+          estadoFilter = 'aceptado';
+        } else if (tab === 'completados') {
+          estadoFilter = 'completado';
+        }
 
-        const res = await listChallenges({ estado: estadoFilter });
+        const res = await listChallenges({ estado: estadoFilter, disponibles });
         if (res.success) {
           setChallenges(res.data.challenges);
         }
@@ -104,6 +112,26 @@ export default function Retos() {
     }
   };
 
+  const handleJoinChallenge = async (challengeId: string) => {
+    setActionAlert(null);
+    try {
+      const res = await updateChallenge(challengeId, { estado: 'unirse', action: 'unirse' });
+      if (res.success) {
+        setActionAlert({ 
+          success: true, 
+          message: 'TE HAS UNIDO AL RETO CON ÉXITO' 
+        });
+        loadChallenges(activeTab);
+        fetchUserData();
+      }
+    } catch (err: any) {
+      setActionAlert({ 
+        success: false, 
+        message: err.response?.data?.error || 'No te pudiste unir al reto' 
+      });
+    }
+  };
+
   const handleRegisterResult = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedChallengeId) {
@@ -120,7 +148,7 @@ export default function Retos() {
     const opponentId = selectedChallenge.retador_id === currentUser.id 
       ? selectedChallenge.retado_id 
       : selectedChallenge.retador_id;
-    const winnerId = outcome === 'win' ? currentUser.id : opponentId;
+    const winnerId = (outcome === 'win' ? currentUser.id : opponentId) || undefined;
 
     try {
       const res = await updateChallenge(selectedChallengeId, {
@@ -216,7 +244,7 @@ export default function Retos() {
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 border-b border-outline-variant/20 scrollbar-hide">
-        {(['pendientes', 'activos', 'completados', 'leaderboard'] as TabType[]).map((tab) => (
+        {(['pendientes', 'abiertos', 'activos', 'completados', 'leaderboard'] as TabType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -335,8 +363,10 @@ export default function Retos() {
               ) : (
                 challenges.map((c, i) => {
                   const defaultImage = DEFAULT_CAR_IMAGES[i % DEFAULT_CAR_IMAGES.length];
-                  const isSentByMe = c.retador_id === currentUser?.id;
-                  const opponent = isSentByMe ? c.retado : c.retador;
+                  const isSentByMe = c.retador_id === currentUser?.id || c.retado_id === currentUser?.id;
+                  const opponent = isSentByMe 
+                    ? (c.retador_id === currentUser?.id ? c.retado : c.retador)
+                    : (c.retador || c.retado);
                   
                   let leftLineColor = 'bg-primary-container';
                   if (activeTab === 'activos') {
@@ -344,7 +374,12 @@ export default function Retos() {
                   } else if (activeTab === 'completados') {
                     const iWon = c.ganador_id === currentUser?.id;
                     leftLineColor = iWon ? 'bg-tertiary' : 'bg-error';
+                  } else if (activeTab === 'abiertos') {
+                    leftLineColor = 'bg-yellow-500';
                   }
+
+                  const displayUsername = opponent?.username || 'DISPONIBLE';
+                  const displayRango = opponent?.rango || '-';
 
                   return (
                     <div 
@@ -368,16 +403,23 @@ export default function Retos() {
                             />
                           </div>
                           <div className="absolute -bottom-2 -right-2 bg-surface border border-outline-variant px-1 text-[10px] font-bold text-tertiary-fixed font-mono select-none">
-                            {opponent?.rango || 'D'}
+                            {displayRango}
                           </div>
                         </div>
 
                         <div className="text-left font-mono">
                           <h4 className="text-[15px] font-bold text-on-surface uppercase tracking-wide">
-                            {opponent?.username}
-                            <span className="text-[9px] text-on-surface-variant lowercase font-normal ml-2 italic">
-                              ({isSentByMe ? 'enviado' : 'recibido'})
-                            </span>
+                            {displayUsername}
+                            {activeTab !== 'abiertos' && (
+                              <span className="text-[9px] text-on-surface-variant lowercase font-normal ml-2 italic">
+                                ({isSentByMe ? 'enviado' : 'recibido'})
+                              </span>
+                            )}
+                            {activeTab === 'abiertos' && (
+                              <span className="text-[9px] text-on-surface-variant lowercase font-normal ml-2 italic">
+                                (abierto)
+                              </span>
+                            )}
                           </h4>
                           <div className="flex items-center gap-2 mt-1 text-on-surface-variant text-[11px]">
                             <span className="material-symbols-outlined text-[15px] text-secondary-container">
@@ -396,6 +438,15 @@ export default function Retos() {
                       </div>
 
                       <div className="flex gap-2 shrink-0 w-full sm:w-auto justify-end">
+                        {activeTab === 'abiertos' && (
+                          <button 
+                            onClick={() => handleJoinChallenge(c.id)}
+                            className="bg-primary-container hover:bg-primary text-on-primary-container font-mono text-[10px] font-bold px-5 py-2 glow-primary btn-notch transition-all cursor-pointer select-none"
+                          >
+                            UNIRSE AL RETO
+                          </button>
+                        )}
+
                         {activeTab === 'pendientes' && (
                           <>
                             {isSentByMe ? (

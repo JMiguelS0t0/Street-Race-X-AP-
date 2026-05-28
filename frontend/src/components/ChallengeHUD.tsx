@@ -24,7 +24,7 @@ interface GPSCoordinates {
 export default function ChallengeHUD({ challenge, currentUser, onClose }: ChallengeHUDProps) {
   const isRetador = challenge.retador_id === currentUser.id;
   const opponent = isRetador ? challenge.retado : challenge.retador;
-  const opponentId = isRetador ? challenge.retado_id : challenge.retador_id;
+  const opponentId = (isRetador ? challenge.retado_id : challenge.retador_id) || '';
 
   const [chatRoomId, setChatRoomId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
