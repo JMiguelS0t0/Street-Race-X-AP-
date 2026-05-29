@@ -94,6 +94,27 @@ describe('Challenge Controller', () => {
         error: expect.stringContaining('del mismo tipo')
       }));
     });
+    it('Regla 8: should return 400 if an active challenge already exists between the two pilots', async () => {
+      req.body = { retador_id: 'user1', retado_id: 'user2' };
+      
+      // Mock findUnique to pass the rank and vehicle checks
+      (prismaMock.user.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ id: 'user1', rango: 'A', vehicles: [{ id: 'v1', tipo_vehiculo: 'Auto' }] })
+        .mockResolvedValueOnce({ id: 'user2', rango: 'A', vehicles: [{ id: 'v2', tipo_vehiculo: 'Auto' }] });
+        
+      // Mock findFirst for existing active challenge (this logic is missing in the controller currently)
+      (prismaMock.challenge.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'existingChallenge123' });
+
+      const nextMock = jest.fn();
+      await createChallenge(req as Request, res as Response, nextMock);
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('Ya tienes un reto activo con este piloto')
+      }));
+    });
   });
 
   describe('updateChallenge (Unirse)', () => {
