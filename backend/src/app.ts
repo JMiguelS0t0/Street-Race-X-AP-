@@ -11,6 +11,7 @@ import notificationRoutes from './routes/notification.routes';
 import categoryRoutes from './routes/category.routes';
 import chatRoutes from './routes/chat.routes';
 import locationRoutes from './routes/location.routes';
+import metricsRoutes from './routes/metrics.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
 
@@ -37,6 +38,7 @@ app.use('/notifications', notificationRoutes);
 app.use('/categories', categoryRoutes);
 app.use('/chat', chatRoutes);
 app.use('/locations', locationRoutes);
+app.use('/metrics', metricsRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.json({
