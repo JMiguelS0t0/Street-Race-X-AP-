@@ -56,9 +56,13 @@ export const processChallengeCompletion = async (input: CompleteChallengeInput) 
       }
     }
 
+    const loser = await tx.user.findUnique({ where: { id: perdedorId } });
+    const currentLoserConsecutive = loser?.retos_consecutivos || 0;
+    const newLoserConsecutive = Math.max(0, currentLoserConsecutive - 1);
+
     await tx.user.update({
       where: { id: perdedorId },
-      data: { derrotas: { increment: 1 }, retos_consecutivos: 0 }
+      data: { derrotas: { increment: 1 }, retos_consecutivos: newLoserConsecutive }
     });
 
     await tx.notification.create({
