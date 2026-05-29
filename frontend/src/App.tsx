@@ -115,7 +115,7 @@ export default function App() {
       case 'vehiculos':
         return <Vehiculos />;
       case 'notificaciones':
-        return <Notificaciones />;
+        return <Notificaciones currentUser={currentUser} />;
       case 'chat':
         return currentUser ? (
           <Chat 
@@ -125,18 +125,18 @@ export default function App() {
           />
         ) : null;
       case 'admin':
-        return currentUser?.rol === 'administrador' ? <Admin /> : <Dashboard onSwitchView={handleNavClick} onSwitchViewWithRoom={handleSwitchViewWithRoom} />;
+        return <Admin />;
       default:
         return <Dashboard onSwitchView={handleNavClick} onSwitchViewWithRoom={handleSwitchViewWithRoom} />;
     }
   };
 
   const menuItems = [
-    { id: 'dashboard', label: 'New Challenges', icon: 'sports_score' },
+    { id: 'dashboard', label: 'Radar de Rivales', icon: 'radar' },
+    { id: 'retos', label: 'Retos / Carreras', icon: 'sports_score' },
     { id: 'chat', label: 'Live Chat', icon: 'chat' },
     { id: 'notificaciones', label: 'Live Alerts', icon: 'bolt' },
     { id: 'vehiculos', label: 'Garage', icon: 'directions_car' },
-    { id: 'retos', label: 'Leaderboard', icon: 'leaderboard' },
     ...(currentUser?.rol === 'administrador' ? [{ id: 'admin', label: 'Admin Panel', icon: 'admin_panel_settings' }] : []),
     { id: 'perfil', label: 'Settings', icon: 'settings' },
   ];
@@ -277,9 +277,9 @@ export default function App() {
 
       <nav className="md:hidden flex justify-around items-center h-20 pb-safe px-4 fixed bottom-0 w-full z-50 bg-[#20201f]/95 backdrop-blur-md border-t border-outline-variant/30 shadow-[0_-4px_10px_rgba(255,87,25,0.15)]">
         {[
-          { id: 'dashboard', label: 'Feed', icon: 'speed' },
+          { id: 'dashboard', label: 'Radar', icon: 'radar' },
           { id: 'chat', label: 'Chat', icon: 'chat' },
-          { id: 'retos', label: 'Race', icon: 'flag' },
+          { id: 'retos', label: 'Carreras', icon: 'sports_score' },
           { id: 'vehiculos', label: 'Garage', icon: 'minor_crash' },
           ...(currentUser?.rol === 'administrador' ? [{ id: 'admin', label: 'Admin', icon: 'admin_panel_settings' }] : []),
           { id: 'perfil', label: 'Profile', icon: 'person' },

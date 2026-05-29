@@ -5,20 +5,40 @@ import {
   bulkUpdateNotifications, 
   deleteNotification 
 } from '../../services/notification.service';
-import { updateChallenge } from '../../services/challenge.service';
+import { updateChallenge, getChallengeDetail } from '../../services/challenge.service';
+import type { Challenge } from '../../services/challenge.service';
 import type { Notification } from '../../services/notification.service';
+import type { User } from '../../services/auth.service';
+import ChallengeDetailModal from '../../components/ChallengeDetailModal';
 
 const DEFAULT_PILOT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDUGE293Fb7D8ZqThUZ65v4u5nM2YQgSjYE02lQjRWFc4_DI2AHYaq_0HWzLVcLGAsE3iCrghDAR-UZYpxAT8EdPmhes568N05s-EqB7D_G55ZXe7RFobdil4LKY5_7zw3sNdVadI6WrBbJwdblMbpE3R1vaUx73Uklywi3GbJJ3Ch93pYA_Yrg2VY6ZdZ3PW1_QFxZdCZEmZqB7P38I7xNGsE0oYSRAo8hMewjnve9HG-D62h1htmnonJlk5GUNfHrp7SI-TG8nx8x';
 
 type FilterType = 'ALL' | 'CHALLENGES' | 'SYSTEM';
 
-export default function Notificaciones() {
+interface NotificacionesProps {
+  currentUser: User | null;
+}
+
+export default function Notificaciones({ currentUser }: NotificacionesProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
   const [actionAlert, setActionAlert] = useState<{ success: boolean; message: string } | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+
+  const handleViewDetails = async (challengeId: string | null) => {
+    if (!challengeId) return;
+    try {
+      const res = await getChallengeDetail(challengeId);
+      if (res.success && res.data) {
+        setSelectedChallenge(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -327,6 +347,16 @@ export default function Notificaciones() {
                           >
                             <div className="skew-x-[12deg]">RECHAZAR</div>
                           </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewDetails(notif.referencia_id);
+                            }}
+                            className="flex-1 bg-transparent border border-secondary-container text-secondary-container font-mono text-[10px] font-bold py-1.5 rounded skew-x-[-12deg] hover:bg-secondary-container/10 transition-colors cursor-pointer select-none"
+                          >
+                            <div className="skew-x-[12deg]">DETALLES</div>
+                          </button>
                         </div>
                       )}
 
@@ -357,6 +387,14 @@ export default function Notificaciones() {
 
       </div>
 
+      {selectedChallenge && currentUser && (
+        <ChallengeDetailModal
+          challenge={selectedChallenge}
+          currentUser={currentUser}
+          onClose={() => setSelectedChallenge(null)}
+          onJoin={async () => {}}
+        />
+      )}
     </div>
   );
 }

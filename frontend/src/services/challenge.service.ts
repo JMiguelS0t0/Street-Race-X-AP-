@@ -171,3 +171,8 @@ export const adminUpdateChallenge = async (
   const response = await api.patch<AdminUpdateChallengeResponse>(`/challenges/admin/${id}`, data);
   return response.data;
 };
+
+export const getChallengeDetail = async (id: string): Promise<ChallengeResponse> => {
+  const response = await api.get<ChallengeResponse>(`/challenges/${id}`);
+  return response.data;
+};

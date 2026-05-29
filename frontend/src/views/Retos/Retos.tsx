@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getMe } from '../../services/auth.service';
 import { 
   listChallenges, 
-  updateChallenge 
+  updateChallenge
 } from '../../services/challenge.service';
 import { getTopRanking } from '../../services/user.service';
 import type { User } from '../../services/auth.service';
@@ -10,6 +10,7 @@ import type { Challenge } from '../../services/challenge.service';
 import type { RankingUser } from '../../services/user.service';
 import ChallengeHUD from '../../components/ChallengeHUD';
 import ChallengeDetailModal from '../../components/ChallengeDetailModal';
+import InvitePilotModal from '../../components/InvitePilotModal';
 
 const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBYR4VH9Q7lnQMe14FpOwtCRSPQZNWWixixsuyVD5R66ZIHDuSjmDgx3pMoef-nzMhyieLT58_EfzglLFsgH0ePPf0-eKdrMaRlRXkfkI29HCDWjoJu9cZmotB-Gtr3zNjeCKXDyZMUTRz45p1FcdlElppE_WjgaDFVdZ7Qrb1Ofe_LBafAtMvcTY80yPrfrqBVHEbUjA1HjhbuOyEqK8wfjqAEnQFQt1LTTIVPxKhrwTaHycMGtpAr-GxioENhzM1IzYH4ALpPJz-G';
 
@@ -18,11 +19,11 @@ const DEFAULT_CAR_IMAGES = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDb-LXA6GWHqcFYgsqQC44hywb8qA7T8X-aLiFaDEaj4ucrgvZcGaGUsqYo7-OpfqnNs8pUlOfE7ZEU3XF-5gHLFCRBD2JUnyNQxti6tDQzzTz-RF0XPasiX-0FwEHqKZU-H55sGcSqOJ0zUJZSbY6d93KrXH1TrQD12oRHRG6n3tvMeeqavZx_ZDqN0iDkMDthjE0eL0QEC8pm8N9Cwc56GCBagkqwC-0obTi9wjXSn9_QLBieSIB70p3EAUlsFQ13E6IMcn5IV4_j'
 ];
 
-type TabType = 'pendientes' | 'abiertos' | 'activos' | 'completados' | 'leaderboard';
+type TabType = 'abiertos' | 'pendientes' | 'activos' | 'completados' | 'leaderboard';
 
 export default function Retos() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('pendientes');
+  const [activeTab, setActiveTab] = useState<TabType>('abiertos');
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [leaderboard, setLeaderboard] = useState<RankingUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,13 @@ export default function Retos() {
   const [submittingResult, setSubmittingResult] = useState(false);
   const [hudChallenge, setHudChallenge] = useState<Challenge | null>(null);
   const [selectedDetailChallenge, setSelectedDetailChallenge] = useState<Challenge | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [counts, setCounts] = useState({
+    abiertos: 0,
+    pendientes: 0,
+    activos: 0,
+    completados: 0
+  });
 
   const fetchUserData = async () => {
     try {
@@ -46,9 +54,33 @@ export default function Retos() {
     }
   };
 
+  const handleOpenInviteModal = () => {
+    setShowInviteModal(true);
+  };
+
+  const fetchCounts = async () => {
+    try {
+      const [abiertosRes, pendientesRes, activosRes, completadosRes] = await Promise.all([
+        listChallenges({ estado: 'pendiente', disponibles: true, limit: 1 }),
+        listChallenges({ estado: 'pendiente', limit: 1 }),
+        listChallenges({ estado: 'aceptado', limit: 1 }),
+        listChallenges({ estado: 'completado', limit: 1 })
+      ]);
+      setCounts({
+        abiertos: abiertosRes.success ? abiertosRes.data.pagination.total : 0,
+        pendientes: pendientesRes.success ? pendientesRes.data.pagination.total : 0,
+        activos: activosRes.success ? activosRes.data.pagination.total : 0,
+        completados: completadosRes.success ? completadosRes.data.pagination.total : 0
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const loadChallenges = async (tab: TabType) => {
     setLoading(true);
     setActionAlert(null);
+    fetchCounts();
     try {
       if (tab === 'leaderboard') {
         const res = await getTopRanking(15);
@@ -86,6 +118,7 @@ export default function Retos() {
 
   useEffect(() => {
     fetchUserData();
+    fetchCounts();
   }, []);
 
   useEffect(() => {
@@ -110,6 +143,26 @@ export default function Retos() {
       setActionAlert({ 
         success: false, 
         message: err.response?.data?.error || 'No se pudo actualizar el reto' 
+      });
+    }
+  };
+
+  const handleLeaveChallenge = async (challengeId: string) => {
+    setActionAlert(null);
+    try {
+      const res = await updateChallenge(challengeId, { estado: 'pendiente', action: 'abandonar' });
+      if (res.success) {
+        setActionAlert({ 
+          success: true, 
+          message: 'HAS ABANDONADO EL RETO CON ÉXITO' 
+        });
+        loadChallenges(activeTab);
+        fetchUserData();
+      }
+    } catch (err: any) {
+      setActionAlert({ 
+        success: false, 
+        message: err.response?.data?.error || 'No pudiste abandonar el reto' 
       });
     }
   };
@@ -284,20 +337,31 @@ export default function Retos() {
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 border-b border-outline-variant/20 scrollbar-hide">
-        {(['pendientes', 'abiertos', 'activos', 'completados', 'leaderboard'] as TabType[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-6 py-2.5 font-mono text-[11px] font-bold uppercase transition-all tracking-wider cursor-pointer whitespace-nowrap ${
-              activeTab === tab
-                ? 'border-b-2 border-secondary-container text-secondary-container bg-secondary-container/10'
-                : 'border-b-2 border-transparent text-on-surface-variant hover:text-on-surface'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-outline-variant/20 pb-1">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+          {(['abiertos', 'pendientes', 'activos', 'completados', 'leaderboard'] as TabType[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-6 py-2.5 font-mono text-[11px] font-bold uppercase transition-all tracking-wider cursor-pointer whitespace-nowrap ${
+                activeTab === tab
+                  ? 'border-b-2 border-secondary-container text-secondary-container bg-secondary-container/10'
+                  : 'border-b-2 border-transparent text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              {tab} {tab !== 'leaderboard' ? `(${counts[tab]})` : ''}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={handleOpenInviteModal}
+          className="bg-primary-container text-on-primary-container font-mono text-[10px] font-bold px-4 py-2.5 skew-x-[-12deg] hover:bg-primary transition-colors cursor-pointer select-none mb-1 sm:mb-0"
+        >
+          <span className="skew-x-[12deg] block flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px]">sports_score</span>
+            RETAR PILOTO
+          </span>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
@@ -404,7 +468,7 @@ export default function Retos() {
               ) : (
                 challenges.map((c, i) => {
                   const defaultImage = DEFAULT_CAR_IMAGES[i % DEFAULT_CAR_IMAGES.length];
-                  const isSentByMe = c.retador_id === currentUser?.id || c.retado_id === currentUser?.id;
+                  const isSentByMe = c.retador_id === currentUser?.id;
                   const opponent = isSentByMe 
                     ? (c.retador_id === currentUser?.id ? c.retado : c.retador)
                     : (c.retador || c.retado);
@@ -505,12 +569,21 @@ export default function Retos() {
                               VER DETALLES
                             </button>
                             {isSentByMe ? (
-                              <button 
-                                onClick={() => handleUpdateStatus(c.id, 'cancelado')}
-                                className="bg-transparent border border-error hover:bg-error/10 text-error font-mono text-[10px] font-bold px-4 py-2 btn-notch transition-colors cursor-pointer select-none"
-                              >
-                                CANCELAR RETO
-                              </button>
+                              currentUser?.rol === 'administrador' ? (
+                                <button 
+                                  onClick={() => handleUpdateStatus(c.id, 'cancelado')}
+                                  className="bg-transparent border border-error hover:bg-error/10 text-error font-mono text-[10px] font-bold px-4 py-2 btn-notch transition-colors cursor-pointer select-none"
+                                >
+                                  CANCELAR RETO
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleLeaveChallenge(c.id)}
+                                  className="bg-transparent border border-error hover:bg-error/10 text-error font-mono text-[10px] font-bold px-4 py-2 btn-notch transition-colors cursor-pointer select-none"
+                                >
+                                  SALIRSE
+                                </button>
+                              )
                             ) : (
                               <>
                                 <button 
@@ -715,6 +788,21 @@ export default function Retos() {
           currentUser={currentUser}
           onClose={() => setSelectedDetailChallenge(null)}
           onJoin={handleJoinChallenge}
+        />
+      )}
+
+      {showInviteModal && currentUser && (
+        <InvitePilotModal
+          isOpen={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          currentUser={currentUser}
+          onSuccess={() => {
+            loadChallenges(activeTab);
+            setActionAlert({
+              success: true,
+              message: 'SISTEMA: INVITACIÓN ENVIADA CON ÉXITO AL RIVAL.'
+            });
+          }}
         />
       )}
     </div>

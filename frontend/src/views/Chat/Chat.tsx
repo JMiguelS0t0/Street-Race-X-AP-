@@ -2,9 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { socket, connectSocket, disconnectSocket } from '../../services/socket';
 import { getRooms, getChatHistory, createRoom } from '../../services/chat.service';
 import { getTopRanking } from '../../services/user.service';
+import { getChallengeDetail, updateChallenge } from '../../services/challenge.service';
 import type { ChatRoom, ChatMessage } from '../../services/chat.service';
 import type { User } from '../../services/auth.service';
 import type { RankingUser } from '../../services/user.service';
+import type { Challenge } from '../../services/challenge.service';
+import ChallengeDetailModal from '../../components/ChallengeDetailModal';
+import SelectChallengeModal from '../../components/SelectChallengeModal';
 
 interface ChatProps {
   currentUser: User;
@@ -24,6 +28,27 @@ export default function Chat({ currentUser, activeRoomId, setActiveRoomId }: Cha
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [availablePilots, setAvailablePilots] = useState<RankingUser[]>([]);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedDetailChallenge, setSelectedDetailChallenge] = useState<Challenge | null>(null);
+
+  const handleJoinChallenge = async (challengeId: string) => {
+    try {
+      await updateChallenge(challengeId, { estado: 'unirse', action: 'unirse' });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleOpenChallengeDetail = async (challengeId: string) => {
+    try {
+      const res = await getChallengeDetail(challengeId);
+      if (res.success && res.data) {
+        setSelectedDetailChallenge(res.data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeout = useRef<any>(null);
@@ -345,6 +370,24 @@ export default function Chat({ currentUser, activeRoomId, setActiveRoomId }: Cha
                 </h3>
                 <span className="w-2 h-2 rounded-full bg-secondary-container shadow-[0_0_8px_#00e3fd] animate-pulse" />
               </div>
+              {(() => {
+                const activeRoom = rooms.find(r => r.id === activeRoomId);
+                const opponent = getOpponent(activeRoom);
+                if (activeRoom && !activeRoom.is_grupo && opponent) {
+                  return (
+                    <button
+                      onClick={() => setShowInviteModal(true)}
+                      className="bg-primary-container hover:bg-primary text-on-primary-container font-mono text-[10px] font-bold px-3 py-1.5 skew-x-[-12deg] transition-all cursor-pointer select-none"
+                    >
+                      <span className="skew-x-[12deg] block flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[13px]">sports_score</span>
+                        RETAR AL PILOTO
+                      </span>
+                    </button>
+                  );
+                }
+                return null;
+              })()}
             </header>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -359,6 +402,10 @@ export default function Chat({ currentUser, activeRoomId, setActiveRoomId }: Cha
               ) : (
                 messages.map((msg) => {
                   const isMe = msg.sender_id === currentUser.id;
+                  const challengeMatch = msg.contenido.match(/\[CHALLENGE_INVITE:([a-zA-Z0-9-]+)\]/);
+                  const isChallengeInvite = !!challengeMatch;
+                  const challengeId = challengeMatch ? challengeMatch[1] : null;
+
                   return (
                     <div
                       key={msg.id}
@@ -367,15 +414,46 @@ export default function Chat({ currentUser, activeRoomId, setActiveRoomId }: Cha
                       <span className="text-[8px] text-on-surface-variant uppercase mb-1">
                         {isMe ? 'YOU' : msg.sender.username.toUpperCase()}
                       </span>
-                      <div
-                        className={`p-3 text-[12px] border ${
-                          isMe
-                            ? 'bg-secondary-container/10 border-secondary-container/40 text-on-surface rounded-tl-lg rounded-br-lg'
-                            : 'bg-[#181818] border-outline-variant/50 text-on-surface-variant rounded-tr-lg rounded-bl-lg'
-                        }`}
-                      >
-                        {msg.contenido}
-                      </div>
+                      {isChallengeInvite && challengeId ? (
+                        <div
+                          className={`p-4 text-[12px] border flex flex-col gap-2 font-mono ${
+                            isMe
+                              ? 'bg-primary-container/10 border-primary-container/40 text-on-surface rounded-tl-lg rounded-br-lg shadow-[0_0_12px_rgba(255,87,25,0.08)]'
+                              : 'bg-[#1e1411] border-[#ff5719]/40 text-on-surface-variant rounded-tr-lg rounded-bl-lg'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 border-b border-outline-variant/30 pb-2">
+                            <span className="material-symbols-outlined text-primary-container text-[18px]">sports_score</span>
+                            <span className="font-bold uppercase tracking-wider text-primary-container">INVITACIÓN A RETO</span>
+                          </div>
+                          <p className="text-[11px] text-on-surface-variant mt-1">
+                            {isMe 
+                              ? 'Has enviado una invitación de carrera.' 
+                              : 'Te ha desafiado a una carrera de velocidad.'
+                            }
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenChallengeDetail(challengeId)}
+                            className="mt-1 bg-[#ff5719] hover:bg-primary text-on-primary-container font-bold px-3 py-1.5 text-[10px] skew-x-[-12deg] transition-all cursor-pointer self-start"
+                          >
+                            <span className="skew-x-[12deg] block flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[14px]">visibility</span>
+                              VER DETALLES
+                            </span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          className={`p-3 text-[12px] border ${
+                            isMe
+                              ? 'bg-secondary-container/10 border-secondary-container/40 text-on-surface rounded-tl-lg rounded-br-lg'
+                              : 'bg-[#181818] border-outline-variant/50 text-on-surface-variant rounded-tr-lg rounded-bl-lg'
+                          }`}
+                        >
+                          {msg.contenido}
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -412,6 +490,29 @@ export default function Chat({ currentUser, activeRoomId, setActiveRoomId }: Cha
           </div>
         )}
       </section>
+
+      {showInviteModal && currentUser && (
+        <SelectChallengeModal
+          isOpen={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          currentUser={currentUser}
+          onSelect={(challengeId) => {
+            socket.emit('send_message', {
+              chatRoomId: activeRoomId,
+              contenido: `[CHALLENGE_INVITE:${challengeId}]`
+            });
+          }}
+        />
+      )}
+
+      {selectedDetailChallenge && currentUser && (
+        <ChallengeDetailModal
+          challenge={selectedDetailChallenge}
+          currentUser={currentUser}
+          onClose={() => setSelectedDetailChallenge(null)}
+          onJoin={handleJoinChallenge}
+        />
+      )}
     </div>
   );
 }

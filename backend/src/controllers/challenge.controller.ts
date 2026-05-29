@@ -329,6 +329,59 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
     return sendSuccess(res, updated, 'Te has unido al reto exitosamente');
   }
 
+  if (action === 'abandonar' || action === 'salirse' || estado === 'abandonar' || estado === 'salirse') {
+    const challenge = await prisma.challenge.findUnique({
+      where: { id },
+      include: {
+        retador: true,
+        retado: true
+      }
+    });
+
+    if (!challenge) {
+      return sendNotFound(res, 'Reto');
+    }
+
+    const userId = authReq.user.id;
+    const isRetador = challenge.retador_id === userId;
+    const isRetado = challenge.retado_id === userId;
+
+    if (!isRetador && !isRetado) {
+      return sendError(res, 'No formas parte de este reto', 400);
+    }
+
+    let updateData: any = {};
+    if (isRetador) {
+      updateData = {
+        retador_id: null,
+        vehiculo_retador_id: null
+      };
+    } else {
+      updateData = {
+        retado_id: null,
+        vehiculo_retado_id: null
+      };
+    }
+
+    updateData.estado = 'pendiente';
+
+    const updated = await prisma.challenge.update({
+      where: { id },
+      data: {
+        ...updateData,
+        updated_at: new Date()
+      },
+      include: {
+        retador: { select: { username: true, rango: true } },
+        retado: { select: { username: true, rango: true } },
+        vehiculo_retador: { select: { marca: true, modelo: true } },
+        vehiculo_retado: { select: { marca: true, modelo: true } }
+      }
+    });
+
+    return sendSuccess(res, updated, 'Has abandonado el reto exitosamente');
+  }
+
   const ALLOWED_STATES = ['aceptado', 'rechazado', 'cancelado', 'en_curso', 'completado'];
   if (!estado || !ALLOWED_STATES.includes(estado)) {
     return sendError(res, `El campo 'estado' es requerido y debe ser uno de: ${ALLOWED_STATES.join(', ')}`, 400);
@@ -357,8 +410,8 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
   }
 
   if (estado === 'cancelado') {
-    if (!isRetador) {
-      return sendError(res, 'Solo el retador puede cancelar este reto', 403);
+    if (authReq.user.rol !== 'administrador') {
+      return sendError(res, 'Solo los administradores pueden cancelar un reto', 403);
     }
   }
 
