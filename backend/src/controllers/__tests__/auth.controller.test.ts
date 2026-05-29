@@ -1,18 +1,13 @@
 import { Request, Response } from 'express';
 import { login, register } from '../auth.controller';
-import prisma from '../../config/prisma';
-
-jest.mock('../../config/prisma', () => ({
-  user: {
-    findUnique: jest.fn(),
-    findFirst: jest.fn(),
-    create: jest.fn(),
-  },
-}));
+import { prismaMock } from '../../utils/prisma-mock';
 
 jest.mock('bcryptjs', () => ({
-  compare: jest.fn(),
-  hash: jest.fn().mockResolvedValue('hashedPassword'),
+  __esModule: true,
+  default: {
+    compare: jest.fn(),
+    hash: jest.fn().mockResolvedValue('hashedPassword'),
+  }
 }));
 
 jest.mock('../../utils/auth', () => ({
@@ -42,13 +37,13 @@ describe('Auth Controller', () => {
       req = { body: { email: 'test@example.com' } }; 
 
       await login(req as Request, res as Response, jest.fn());
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(statusMock).toHaveBeenCalledWith(400);
       expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
         success: false,
         error: 'Email y password son requeridos'
       }));
-    });
     });
   });
 
@@ -58,7 +53,7 @@ describe('Auth Controller', () => {
         body: { username: 'testuser', email: 'test@example.com', password: 'password123' }
       };
 
-      (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'existingId', email: 'test@example.com' });
+      (prismaMock.user.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'existingId', email: 'test@example.com' });
 
       await register(req as Request, res as Response, jest.fn());
 
@@ -74,8 +69,8 @@ describe('Auth Controller', () => {
         body: { username: 'newuser', email: 'new@example.com', password: 'password123' }
       };
 
-      (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce(null);
-      (prisma.user.create as jest.Mock).mockResolvedValueOnce({
+      (prismaMock.user.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prismaMock.user.create as jest.Mock).mockResolvedValueOnce({
         id: 'newId',
         username: 'newuser',
         email: 'new@example.com',
@@ -83,8 +78,9 @@ describe('Auth Controller', () => {
       });
 
       await register(req as Request, res as Response, jest.fn());
+      await new Promise(resolve => setTimeout(resolve, 0));
 
-      expect(prisma.user.create).toHaveBeenCalledWith(expect.objectContaining({
+      expect(prismaMock.user.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({
           rango: 'D'
         })
