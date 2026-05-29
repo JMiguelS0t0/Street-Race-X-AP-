@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../config/prisma';
+import { ChallengeStatus } from '../types/constants';
 
 const RANKS = ['D', 'C', 'B', 'A', 'S'] as const;
 
@@ -72,4 +73,117 @@ export const processChallengeCompletion = async (input: CompleteChallengeInput) 
       data: { user_id: perdedorId, tipo: 'resultado', mensaje: `Has perdido el reto contra ${isRetadorWinner ? retadorUsername : retadoUsername}` }
     });
   });
+};
+
+export const validateChallengeEligibility = async (pilotA: any, pilotB: any) => {
+  if (pilotA.id === pilotB.id) {
+    throw new Error('No puedes retar al mismo piloto');
+  }
+
+  if (!pilotA.vehicles || pilotA.vehicles.length === 0) {
+    throw new Error('El retador debe tener un vehículo activo');
+  }
+
+  if (!pilotB.vehicles || pilotB.vehicles.length === 0) {
+    throw new Error('El piloto retado no tiene un vehículo activo');
+  }
+
+  if (pilotA.rango !== pilotB.rango) {
+    throw new Error('Solo se pueden retar pilots del mismo rango');
+  }
+
+  if (pilotA.vehicles[0].tipo_vehiculo !== pilotB.vehicles[0].tipo_vehiculo) {
+    throw new Error('Los vehículos activos deben ser del mismo tipo (ej: Auto vs Auto)');
+  }
+
+  const activeChallenge = await prisma.challenge.findFirst({
+    where: {
+      OR: [
+        { retador_id: pilotA.id, retado_id: pilotB.id },
+        { retador_id: pilotB.id, retado_id: pilotA.id }
+      ],
+      estado: { in: [ChallengeStatus.PENDIENTE, ChallengeStatus.ACEPTADO, ChallengeStatus.EN_CURSO] }
+    }
+  });
+
+  if (activeChallenge) {
+    throw new Error('Ya tienes un reto activo con este piloto');
+  }
+};
+
+export const resolveChallengeVote = async (challengeId: string, isRetador: boolean, ganadorId: string) => {
+  const challenge = await prisma.challenge.findUnique({
+    where: { id: challengeId },
+    include: {
+      retador: { select: { id: true, username: true, rango: true } },
+      retado: { select: { id: true, username: true, rango: true } },
+      vehiculo_retador: { select: { marca: true, modelo: true } },
+      vehiculo_retado: { select: { marca: true, modelo: true } },
+      location: true
+    }
+  });
+
+  if (!challenge || (challenge.estado !== ChallengeStatus.ACEPTADO && challenge.estado !== ChallengeStatus.EN_CURSO)) {
+    throw new Error('El reto no está en un estado válido para registrar el resultado');
+  }
+
+  if (ganadorId !== challenge.retador_id && ganadorId !== challenge.retado_id) {
+    throw new Error('El ganador debe ser uno de los participantes del reto');
+  }
+
+  const updateData: any = {};
+  if (isRetador) {
+    updateData.ganador_retador_id = ganadorId;
+  } else {
+    updateData.ganador_retado_id = ganadorId;
+  }
+
+  const updated = await prisma.challenge.update({
+    where: { id: challengeId },
+    data: {
+      ...updateData,
+      updated_at: new Date()
+    },
+    include: {
+      retador: { select: { id: true, username: true, rango: true } },
+      retado: { select: { id: true, username: true, rango: true } },
+      vehiculo_retador: { select: { marca: true, modelo: true } },
+      vehiculo_retado: { select: { marca: true, modelo: true } },
+      location: true
+    }
+  });
+
+  if (updated.ganador_retador_id && updated.ganador_retado_id) {
+    if (updated.ganador_retador_id === updated.ganador_retado_id) {
+      const isRetadorWinner = ganadorId === updated.retador_id;
+      const perdedor_id = isRetadorWinner ? updated.retado_id : updated.retador_id;
+
+      if (updated.retador && updated.retado && perdedor_id) {
+        await processChallengeCompletion({
+          challengeId,
+          ganadorId,
+          perdedorId: perdedor_id,
+          retadorUsername: updated.retador.username,
+          retadoUsername: updated.retado.username,
+          isRetadorWinner
+        });
+      }
+
+      const finalChallenge = await prisma.challenge.findUnique({
+        where: { id: challengeId },
+        include: {
+          retador: { select: { username: true, rango: true } },
+          retado: { select: { username: true, rango: true } },
+          vehiculo_retador: { select: { marca: true, modelo: true } },
+          vehiculo_retado: { select: { marca: true, modelo: true } },
+          location: true
+        }
+      });
+      return { status: 'completed', challenge: finalChallenge };
+    } else {
+      return { status: 'conflict', challenge: updated, message: 'Conflicto de votos: Ambos pilotos deben elegir al mismo ganador.' };
+    }
+  }
+
+  return { status: 'waiting', challenge: updated, message: 'Voto registrado. Esperando que el otro piloto registre el resultado.' };
 };

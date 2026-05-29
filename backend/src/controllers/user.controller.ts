@@ -181,24 +181,3 @@ export const getTopRanking = asyncHandler(async (req: Request, res: Response) =>
   sendSuccess(res, ranking);
 });
 
-export const adminUpdateUser = asyncHandler(async (req: Request, res: Response) => {
-  const id = req.params.id as string;
-  const { estado, rol, rango } = req.body;
-  
-  const user = await prisma.user.update({
-    where: { id },
-    data: { estado, rol, rango, updated_at: new Date() },
-    select: { id: true, username: true, email: true, estado: true, rol: true, rango: true }
-  });
-
-  sendSuccess(res, user, 'Usuario actualizado por administrador');
-});
-
-export const adminDeleteUser = asyncHandler(async (req: Request, res: Response) => {
-  const id = req.params.id as string;
-  await prisma.user.update({
-    where: { id },
-    data: { estado: 'inactivo' }
-  });
-  sendSuccess(res, undefined, 'Usuario desactivado por administrador');
-});

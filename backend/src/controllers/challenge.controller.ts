@@ -3,18 +3,18 @@ import prisma from '../config/prisma';
 import { sendSuccess, sendError, sendNotFound } from '../utils/response';
 import { AuthRequest, AuthenticatedRequest } from '../types';
 import { parsePagination, buildPaginationMeta } from '../utils/pagination';
-import { processChallengeCompletion } from '../services/challenge.service';
+import { processChallengeCompletion, validateChallengeEligibility, resolveChallengeVote } from '../services/challenge.service';
+import { ChallengeStatus, RaceType } from '../types/constants';
 import { asyncHandler } from '../utils/asyncHandler';
 
 export const createChallenge = asyncHandler(async (req: Request, res: Response) => {
   const { retador_id, retado_id, tipo_carrera, numero_vueltas, ubicacion_acordada, location_id, fecha_acordada, notas } = req.body;
 
-  const TIPOS_CARRERA = ['Cuarto de Milla', 'Carrera por Vueltas', 'Derrape'];
-  if (!tipo_carrera || !TIPOS_CARRERA.includes(tipo_carrera)) {
-    return sendError(res, `El tipo de carrera debe ser uno de: ${TIPOS_CARRERA.join(', ')}`, 400);
+  if (!tipo_carrera || !Object.values(RaceType).includes(tipo_carrera)) {
+    return sendError(res, `El tipo de carrera debe ser uno de: ${Object.values(RaceType).join(', ')}`, 400);
   }
 
-  if (tipo_carrera === 'Carrera por Vueltas' && (numero_vueltas === undefined || numero_vueltas === null || numero_vueltas <= 0)) {
+  if (tipo_carrera === RaceType.CARRERA_VUELTAS && (numero_vueltas === undefined || numero_vueltas === null || numero_vueltas <= 0)) {
     return sendError(res, 'Para Carrera por Vueltas se requiere especificar el número de vueltas', 400);
   }
 
@@ -101,7 +101,7 @@ export const createChallenge = asyncHandler(async (req: Request, res: Response) 
       location_id: location_id || null,
       fecha_acordada: fecha_acordada ? new Date(fecha_acordada) : null,
       notas,
-      estado: 'pendiente'
+      estado: ChallengeStatus.PENDIENTE
     }
   });
 
@@ -182,7 +182,7 @@ export const listChallenges = asyncHandler(async (req: Request, res: Response) =
   let whereClause: any;
   if (disponibles) {
     whereClause = {
-      estado: 'pendiente',
+      estado: ChallengeStatus.PENDIENTE,
       OR: [
         { retador_id: null },
         { retado_id: null }
@@ -302,7 +302,7 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
       updateData = {
         retado_id: userId,
         vehiculo_retado_id: activeVehicle.id,
-        estado: 'aceptado'
+        estado: ChallengeStatus.ACEPTADO
       };
     } else if (!challenge.retador_id && challenge.retado_id) {
       if (challenge.retado?.rango !== joiningUser.rango) {
@@ -314,7 +314,7 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
       updateData = {
         retador_id: userId,
         vehiculo_retador_id: activeVehicle.id,
-        estado: 'aceptado'
+        estado: ChallengeStatus.ACEPTADO
       };
     } else {
       return sendError(res, 'El reto ya está lleno', 400);
@@ -445,22 +445,22 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
   const isRetador = challenge.retador_id === userId;
   const isRetado = challenge.retado_id === userId;
 
-  if (estado === 'aceptado' || estado === 'rechazado') {
+  if (estado === ChallengeStatus.ACEPTADO || estado === ChallengeStatus.RECHAZADO) {
     if (!isRetado) {
       return sendError(res, 'Solo el retado puede responder a este reto', 403);
     }
-    if (challenge.estado !== 'pendiente') {
+    if (challenge.estado !== ChallengeStatus.PENDIENTE) {
       return sendError(res, 'Solo se puede aceptar o rechazar un reto pendiente', 400);
     }
   }
 
-  if (estado === 'cancelado') {
+  if (estado === ChallengeStatus.CANCELADO) {
     if (authReq.user.rol !== 'administrador') {
       return sendError(res, 'Solo los administradores pueden cancelar un reto', 403);
     }
   }
 
-  if (estado === 'en_curso') {
+  if (estado === ChallengeStatus.EN_CURSO) {
     if (!isRetador && !isRetado) {
       return sendError(res, 'Solo los participantes del reto pueden cambiar su estado', 403);
     }
@@ -469,7 +469,7 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
     }
   }
 
-  if (estado === 'completado') {
+  if (estado === ChallengeStatus.COMPLETADO) {
     if (!isRetador && !isRetado) {
       return sendError(res, 'Solo los participantes del reto pueden registrar el resultado', 403);
     }
@@ -565,7 +565,7 @@ export const updateChallenge = asyncHandler(async (req: Request, res: Response) 
 
 export const getGlobalHistory = asyncHandler(async (req: Request, res: Response) => {
   const history = await prisma.challenge.findMany({
-    where: { estado: 'completado' },
+    where: { estado: ChallengeStatus.COMPLETADO },
     include: {
       retador: { select: { username: true, rango: true } },
       retado: { select: { username: true, rango: true } },

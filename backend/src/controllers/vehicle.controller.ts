@@ -3,6 +3,7 @@ import prisma from '../config/prisma';
 import { sendSuccess, sendError, sendNotFound } from '../utils/response';
 import { AuthenticatedRequest } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
+import { softDeleteVehicle } from '../services/vehicle.service';
 
 export const listVehicles = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
@@ -119,31 +120,13 @@ export const deleteVehicle = asyncHandler(async (req: Request, res: Response) =>
   const authReq = req as AuthenticatedRequest;
   const id = req.params.id as string;
 
-  const activeChallenges = await prisma.challenge.count({
-    where: {
-      OR: [
-        { vehiculo_retador_id: id },
-        { vehiculo_retado_id: id }
-      ],
-      estado: { in: ['pendiente', 'aceptado', 'en_curso'] }
+  try {
+    await softDeleteVehicle(id, authReq.user.id);
+    sendSuccess(res, undefined, 'Vehículo eliminado');
+  } catch (error: any) {
+    if (error.message.includes('No se puede eliminar')) {
+      return sendError(res, error.message, 400);
     }
-  });
-
-  if (activeChallenges > 0) {
-    return sendError(res, 'No se puede eliminar un vehículo con retos activos o pendientes', 400);
+    return sendError(res, error.message, 404);
   }
-
-  const updatedResult = await prisma.vehicle.updateMany({
-    where: { id, user_id: authReq.user.id },
-    data: {
-      activo: false,
-      tipo_vehiculo: 'DELETED'
-    }
-  });
-
-  if (updatedResult.count === 0) {
-    return sendError(res, 'Vehículo no encontrado o no tienes permiso para eliminarlo', 404);
-  }
-
-  sendSuccess(res, undefined, 'Vehículo eliminado');
 });

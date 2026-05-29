@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { createChallenge, listChallenges, updateChallenge, getGlobalHistory, getChallengeDetail } from '../controllers/challenge.controller';
-import { authMiddleware, adminMiddleware } from '../middlewares/auth.middleware';
-import { listAllChallenges, deleteChallenge, updateChallengeAdmin } from '../controllers/admin.controller';
+import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -37,9 +36,7 @@ router.get('/history', getGlobalHistory);
 
 router.use(authMiddleware);
 
-router.get('/admin/all', adminMiddleware, listAllChallenges);
-router.delete('/admin/:id', adminMiddleware, deleteChallenge);
-router.patch('/admin/:id', adminMiddleware, updateChallengeAdmin);
+
 
 /**
  * @swagger
@@ -141,7 +138,7 @@ router.get('/', listChallenges);
  *       500:
  *         $ref: '#/components/responses/InternalError'
  */
-router.post('/', adminMiddleware, createChallenge);
+router.post('/', createChallenge);
 
 /**
  * @swagger

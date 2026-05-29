@@ -73,7 +73,7 @@ export default function Admin() {
     setUsersLoading(true);
     setError(null);
     try {
-      const res = await listAllUsers(page, 10);
+      const res = await adminListAllUsers(page, 10);
       if (res.success) {
         setUsers(res.data.users);
         setUserTotalPages(res.data.pagination.totalPages);

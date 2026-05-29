@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { getPublicProfile, discoverPilots, updateProfile, getRankHistory, getTopRanking, listAllUsers, deleteMe, adminUpdateUser, adminDeleteUser } from '../controllers/user.controller';
-import { authMiddleware, adminMiddleware } from '../middlewares/auth.middleware';
+import { getPublicProfile, discoverPilots, updateProfile, getRankHistory, getTopRanking, deleteMe } from '../controllers/user.controller';
+import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -11,54 +11,7 @@ const router = Router();
  *   description: Perfiles de pilotos y descubrimiento de rivales
  */
 
-/**
- * @swagger
- * /users:
- *   get:
- *     summary: (Admin) Listar todos los usuarios
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema: { type: integer, default: 1 }
- *       - in: query
- *         name: limit
- *         schema: { type: integer, default: 20 }
- *       - in: query
- *         name: rol
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: Lista completa de usuarios
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean, example: true }
- *                 data:
- *                   type: object
- *                   properties:
- *                     users:
- *                       type: array
- *                       items: { $ref: '#/components/schemas/User' }
- *                     pagination:
- *                       type: object
- *                       properties:
- *                         total: { type: integer }
- *                         page: { type: integer }
- *                         limit: { type: integer }
- *                         totalPages: { type: integer }
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         description: Acceso denegado (no es admin)
- *       500:
- *         $ref: '#/components/responses/InternalError'
- */
-router.get('/', authMiddleware, adminMiddleware, listAllUsers);
+
 
 /**
  * @swagger
@@ -275,78 +228,6 @@ router.delete('/me', authMiddleware, deleteMe);
  */
 router.get('/:id', authMiddleware, getPublicProfile);
 
-/**
- * @swagger
- * /users/{id}:
- *   patch:
- *     summary: (Admin) Actualizar cualquier usuario
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               estado: { type: string, enum: [activo, suspendido] }
- *               rol: { type: string, enum: [piloto, administrador] }
- *               rango: { type: string, enum: [D, C, B, A, S] }
- *     responses:
- *       200:
- *         description: Usuario actualizado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: "Usuario actualizado" }
- *                 data: { $ref: '#/components/schemas/User' }
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         description: Acceso denegado (no es admin)
- *       500:
- *         $ref: '#/components/responses/InternalError'
- */
-router.patch('/:id', authMiddleware, adminMiddleware, adminUpdateUser);
 
-/**
- * @swagger
- * /users/{id}:
- *   delete:
- *     summary: (Admin) Eliminar un usuario
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
- *     responses:
- *       200:
- *         description: Usuario eliminado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: "Usuario eliminado correctamente" }
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         description: Acceso denegado (no es admin)
- *       500:
- *         $ref: '#/components/responses/InternalError'
- */
-router.delete('/:id', authMiddleware, adminMiddleware, adminDeleteUser);
 
 export default router;
