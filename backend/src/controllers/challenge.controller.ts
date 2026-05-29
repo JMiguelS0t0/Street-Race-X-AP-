@@ -128,6 +128,10 @@ export const completeChallenge = asyncHandler(async (req: Request, res: Response
     return sendError(res, 'El reto no existe o no está en un estado válido para completarse', 400);
   }
 
+  if (!challenge.retador || !challenge.retado || !challenge.retador_id || !challenge.retado_id) {
+    return sendError(res, 'El reto no cuenta con los participantes definidos', 400);
+  }
+
   const isRetadorWinner = ganador_id === challenge.retador_id;
   const perdedor_id = isRetadorWinner ? challenge.retado_id : challenge.retador_id;
 
