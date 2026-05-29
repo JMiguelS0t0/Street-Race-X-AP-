@@ -81,7 +81,6 @@ export const discoverPilots = asyncHandler(async (req: Request, res: Response) =
 
   const whereClause: any = {
     id: { not: me.id },
-    rango: me.rango,
     estado: 'activo',
     vehicles: {
       some: {
