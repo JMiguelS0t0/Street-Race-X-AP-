@@ -7,7 +7,16 @@ import { processChallengeCompletion } from '../services/challenge.service';
 import { asyncHandler } from '../utils/asyncHandler';
 
 export const createChallenge = asyncHandler(async (req: Request, res: Response) => {
-  const { retador_id, retado_id, tipo_carrera, ubicacion_acordada, location_id, fecha_acordada, notas } = req.body;
+  const { retador_id, retado_id, tipo_carrera, numero_vueltas, ubicacion_acordada, location_id, fecha_acordada, notas } = req.body;
+
+  const TIPOS_CARRERA = ['Cuarto de Milla', 'Carrera por Vueltas', 'Derrape'];
+  if (!tipo_carrera || !TIPOS_CARRERA.includes(tipo_carrera)) {
+    return sendError(res, `El tipo de carrera debe ser uno de: ${TIPOS_CARRERA.join(', ')}`, 400);
+  }
+
+  if (tipo_carrera === 'Carrera por Vueltas' && (numero_vueltas === undefined || numero_vueltas === null || numero_vueltas <= 0)) {
+    return sendError(res, 'Para Carrera por Vueltas se requiere especificar el número de vueltas', 400);
+  }
 
   let retador = null;
   let retado = null;
@@ -87,6 +96,7 @@ export const createChallenge = asyncHandler(async (req: Request, res: Response) 
       vehiculo_retador_id: retador && retador.vehicles.length > 0 ? retador.vehicles[0].id : null,
       vehiculo_retado_id: retado && retado.vehicles.length > 0 ? retado.vehicles[0].id : null,
       tipo_carrera,
+      numero_vueltas: tipo_carrera === 'Carrera por Vueltas' ? numero_vueltas : null,
       ubicacion_acordada: finalUbicacion,
       location_id: location_id || null,
       fecha_acordada: fecha_acordada ? new Date(fecha_acordada) : null,

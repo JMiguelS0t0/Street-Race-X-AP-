@@ -26,7 +26,7 @@ describe('Challenge Controller', () => {
 
   describe('createChallenge', () => {
     it('Regla 4: should return 400 if retador has no active vehicles', async () => {
-      req.body = { retador_id: 'user123', tipo_carrera: 'Circuito' };
+      req.body = { retador_id: 'user123', tipo_carrera: 'Cuarto de Milla' };
       
       // Mock the pilot having no vehicles
       (prismaMock.user.findUnique as jest.Mock).mockResolvedValueOnce({
@@ -46,7 +46,7 @@ describe('Challenge Controller', () => {
     });
 
     it('Regla 12: should return 400 if retador_id and retado_id are the same', async () => {
-      req.body = { retador_id: 'user123', retado_id: 'user123', tipo_carrera: 'Circuito' };
+      req.body = { retador_id: 'user123', retado_id: 'user123', tipo_carrera: 'Cuarto de Milla' };
       
       const nextMock = jest.fn();
       await createChallenge(req as Request, res as Response, nextMock);
@@ -60,7 +60,7 @@ describe('Challenge Controller', () => {
     });
 
     it('Regla 6: should return 400 if pilots have different ranks', async () => {
-      req.body = { retador_id: 'user1', retado_id: 'user2' };
+      req.body = { retador_id: 'user1', retado_id: 'user2', tipo_carrera: 'Cuarto de Milla' };
       
       (prismaMock.user.findUnique as jest.Mock)
         .mockResolvedValueOnce({ id: 'user1', rango: 'A', vehicles: [{ id: 'v1', tipo_vehiculo: 'Auto' }] })
@@ -78,7 +78,7 @@ describe('Challenge Controller', () => {
     });
 
     it('Regla 7: should return 400 if pilots have different active vehicle types', async () => {
-      req.body = { retador_id: 'user1', retado_id: 'user2' };
+      req.body = { retador_id: 'user1', retado_id: 'user2', tipo_carrera: 'Cuarto de Milla' };
       
       (prismaMock.user.findUnique as jest.Mock)
         .mockResolvedValueOnce({ id: 'user1', rango: 'A', vehicles: [{ id: 'v1', tipo_vehiculo: 'Auto' }] })
@@ -95,7 +95,7 @@ describe('Challenge Controller', () => {
       }));
     });
     it('Regla 8: should return 400 if an active challenge already exists between the two pilots', async () => {
-      req.body = { retador_id: 'user1', retado_id: 'user2' };
+      req.body = { retador_id: 'user1', retado_id: 'user2', tipo_carrera: 'Cuarto de Milla' };
       
       // Mock findUnique to pass the rank and vehicle checks
       (prismaMock.user.findUnique as jest.Mock)
@@ -113,6 +113,34 @@ describe('Challenge Controller', () => {
       expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
         success: false,
         error: expect.stringContaining('Ya tienes un reto activo con este piloto')
+      }));
+    });
+
+    it('should return 400 if tipo_carrera is invalid', async () => {
+      req.body = { retador_id: 'user1', tipo_carrera: 'Rally' };
+      
+      const nextMock = jest.fn();
+      await createChallenge(req as Request, res as Response, nextMock);
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('El tipo de carrera debe ser uno de')
+      }));
+    });
+
+    it('should return 400 if tipo_carrera is Carrera por Vueltas and numero_vueltas is missing', async () => {
+      req.body = { retador_id: 'user1', tipo_carrera: 'Carrera por Vueltas' }; // no numero_vueltas
+      
+      const nextMock = jest.fn();
+      await createChallenge(req as Request, res as Response, nextMock);
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('se requiere especificar el número de vueltas')
       }));
     });
   });

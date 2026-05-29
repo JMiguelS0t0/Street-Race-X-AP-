@@ -80,6 +80,7 @@ model Challenge {
   vehiculo_retador_id String?   @db.UniqueIdentifier
   vehiculo_retado_id  String?   @db.UniqueIdentifier
   tipo_carrera        String?   @db.NVarChar(50)
+  numero_vueltas      Int?
   estado              String?   @default("pendiente") @db.NVarChar(20)
   ganador_id          String?   @db.UniqueIdentifier
   ganador_retador_id  String?   @db.UniqueIdentifier
