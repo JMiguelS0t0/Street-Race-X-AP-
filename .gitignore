@@ -19,3 +19,8 @@ frontend/.env
 
 # Prisma Generated Client
 backend/src/generated/prisma
+
+# random files
+BRANCHING_STRATEGY.md
+.github
+scripts
